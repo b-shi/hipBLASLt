@@ -275,6 +275,15 @@ def parseLibraryLogicData(data, srcFile="?", archs=None):
 
     # unpack solution
     def solutionStateToSolution(solutionState) -> Solution:
+
+        # If parameter not in yaml, fill with default values
+        if "KernelLanguage" not in solutionState.keys():
+            solutionState["KernelLanguage"] = Common.defaultSolution["KernelLanguage"]
+        if "CustomKernelName" not in solutionState.keys():
+            solutionState["CustomKernelName"] = Common.defaultSolution["CustomKernelName"]
+
+        solutionState["ProblemType"] = data["ProblemType"];
+
         if solutionState["KernelLanguage"] == "Assembly":
             solutionState["ISA"] = Common.gfxArch(data["ArchitectureName"])
         else:
@@ -291,15 +300,7 @@ def parseLibraryLogicData(data, srcFile="?", archs=None):
             for key, value in customConfig.items():
                 solutionState[key] = value
         solutionObject = Solution(solutionState)
-        solutionProblemType = solutionObject["ProblemType"]
-        if problemType != solutionProblemType:
-            # find the mismatched items in ProblemType
-            results = ""
-            solIdx = solutionObject["SolutionIndex"]
-            for item in problemType:
-                if problemType[item] != solutionProblemType[item]:
-                    results += f"\t{item}: {problemType[item]} != {solutionProblemType[item]}\n"
-            printExit(f"ProblemType in library logic file {srcFile} doesn't match solution(idx={solIdx}): \n{results}")
+
         return solutionObject
 
     solutions = [solutionStateToSolution(solutionState) for solutionState in data["Solutions"]]
@@ -434,68 +435,31 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, libraryTyp
         problemTypeState["DataTypeMetadata"] = \
                 problemTypeState["DataTypeMetadata"].value
     data.append(problemTypeState)
+
+    # remove parameters with are set to the default values
+    # so they are copied to the yaml files
+    def removeDefaultVals(params):
+        for k in list(params.keys()):
+            if k in Common.defaultSolution.keys():
+                if params[k] == Common.defaultSolution[k]:
+                    del params[k]
+
     # solutions
     solutionList = []
     for solution in solutions:
         solutionState = solution.getAttributes()
-        solutionState["ProblemType"] = solutionState["ProblemType"].state
-        solutionState["ProblemType"]["DataType"] = \
-                solutionState["ProblemType"]["DataType"].value
-        solutionState["ProblemType"]["DataTypeA"] = \
-                solutionState["ProblemType"]["DataTypeA"].value
-        solutionState["ProblemType"]["DataTypeB"] = \
-                solutionState["ProblemType"]["DataTypeB"].value
-        solutionState["ProblemType"]["DataTypeE"] = \
-                solutionState["ProblemType"]["DataTypeE"].value
-        solutionState["ProblemType"]["DataTypeAmaxD"] = \
-                solutionState["ProblemType"]["DataTypeAmaxD"].value
-        solutionState["ProblemType"]["DestDataType"] = \
-                solutionState["ProblemType"]["DestDataType"].value
-        solutionState["ProblemType"]["ComputeDataType"] = \
-                solutionState["ProblemType"]["ComputeDataType"].value
-        solutionState["ProblemType"]["BiasDataTypeList"] = \
-                [btype.value for btype in solutionState["ProblemType"]["BiasDataTypeList"]]
-        solutionState["ProblemType"]["ActivationComputeDataType"] = \
-                solutionState["ProblemType"]["ActivationComputeDataType"].value
-        solutionState["ProblemType"]["ActivationType"] = \
-                solutionState["ProblemType"]["ActivationType"].value
-        solutionState["ProblemType"]["F32XdlMathOp"] = \
-                solutionState["ProblemType"]["F32XdlMathOp"].value
-        if "DataTypeMetadata" in solutionState["ProblemType"]:
-            solutionState["ProblemType"]["DataTypeMetadata"] = \
-                    solutionState["ProblemType"]["DataTypeMetadata"].value
+        removeDefaultVals(solutionState)
+        if "ProblemType" in solutionState.keys():
+            del solutionState["ProblemType"]
         solutionList.append(solutionState)
 
     if tileSelection:
         tileSolutions = logicTuple[5]
         for solution in tileSolutions:
             solutionState = solution.getAttributes()
-            solutionState["ProblemType"] = solutionState["ProblemType"].state
-            solutionState["ProblemType"]["DataType"] = \
-                    solutionState["ProblemType"]["DataType"].value
-            solutionState["ProblemType"]["DataTypeA"] = \
-                    solutionState["ProblemType"]["DataTypeA"].value
-            solutionState["ProblemType"]["DataTypeB"] = \
-                    solutionState["ProblemType"]["DataTypeB"].value
-            solutionState["ProblemType"]["DataTypeE"] = \
-                    solutionState["ProblemType"]["DataTypeE"].value
-            solutionState["ProblemType"]["DataTypeAmaxD"] = \
-                    solutionState["ProblemType"]["DataTypeAmaxD"].value
-            solutionState["ProblemType"]["DestDataType"] = \
-                    solutionState["ProblemType"]["DestDataType"].value
-            solutionState["ProblemType"]["ComputeDataType"] = \
-                    solutionState["ProblemType"]["ComputeDataType"].value
-            solutionState["ProblemType"]["BiasDataTypeList"] = \
-                    [btype.value for btype in solutionState["ProblemType"]["BiasDataTypeList"]]
-            solutionState["ProblemType"]["ActivationComputeDataType"] = \
-                    solutionState["ProblemType"]["ActivationComputeDataType"].value
-            solutionState["ProblemType"]["ActivationType"] = \
-                    solutionState["ProblemType"]["ActivationType"].value
-            solutionState["ProblemType"]["F32XdlMathOp"] = \
-                solutionState["ProblemType"]["F32XdlMathOp"].value
-            if "DataTypeMetadata" in solutionState["ProblemType"]:
-                solutionState["ProblemType"]["DataTypeMetadata"] = \
-                    solutionState["ProblemType"]["DataTypeMetadata"].value
+            removeDefaultVals(solutionState)
+            if "ProblemType" in solutionState.keys():
+                del solutionState["ProblemType"]
             solutionList.append(solutionState)
 
     data.append(solutionList)

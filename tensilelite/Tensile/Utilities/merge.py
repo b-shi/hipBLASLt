@@ -144,6 +144,8 @@ def compareProblemType(origData, incData):
     solIdx = 0
     # Compare ProblemType of originalFiles and incrementalFiles
     for i, _ in enumerate(incData[5]):
+        # Skip if kernel does not have problem type
+        if "ProblemType" not in incData[5][i]: continue
         incProblemType = incData[5][i]["ProblemType"]
         if problemType !=  incProblemType:
             for item in problemType:
@@ -334,6 +336,9 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True, addSolutionTags=Fal
     origDict = {tuple(origSize): [i, origEff] for i, [origSize, [origIndex, origEff]] in enumerate(origData[7])}
     for incSize, [incIndex, incEff] in incData[7]:
         incSolution = findSolutionWithIndex(incData[5], incIndex)
+
+        if "ProblemType" in incSolution.keys():
+            del incSolution["ProblemType"]
 
         storeEff = incEff if noEff == False else 0.0
         try:
