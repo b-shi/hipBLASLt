@@ -245,10 +245,7 @@ class LibraryLogic(NamedTuple):
 import time
 
 def parseLibraryLogicFile(filename, archs=None):
-    t0 = time.time()
     f = read(filename, True)
-    t1 = time.time()
-    print("parseLibraryLogicFile: Time to read file:", t1 - t0)
     """Wrapper function to read and parse a library logic file."""
     return parseLibraryLogicData(f, filename, archs)
 
@@ -275,10 +272,9 @@ def parseLibraryLogicDataAndFilter(data, srcFile="?", archs=None):
                 .format(srcFile, data["MinimumRequiredVersion"], __version__) )
 
     return data
-            
+
 
 def parseLibraryLogicData(data, srcFile="?", archs=None):
-    t0_ = time.time()
     """Parses the data of a library logic file."""
     if isinstance(data, List):
         data = parseLibraryLogicList(data, srcFile)
@@ -333,20 +329,12 @@ def parseLibraryLogicData(data, srcFile="?", archs=None):
 
         return solutionObject
 
-    t0 = time.time()
     solutions = [solutionStateToSolution(solutionState) for solutionState in data["Solutions"]]
-    t1 = time.time()
-    
+
     newLibrary, _ = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions)
-    t2 = time.time()
     rv = LibraryLogic(data["ScheduleName"], data["ArchitectureName"], problemType, solutions, \
              data.get("ExactLogic"), newLibrary, srcFile)
-    t1_ = time.time()
-    print("Time to get solutions:", t1 - t0)
-    print("Time to get newLibrary:", t2 - t1)
-    print("Time to get LibraryLogic:", t1_ - t2)
-    print("Number of solutions:", len(data["Solutions"]), ", time:", t1_ - t0_)
-    return rv 
+    return rv
 
 
 
@@ -456,16 +444,19 @@ import multiprocessing
 from multiprocessing import cpu_count
 from multiprocessing import Manager, Pool
 from itertools import repeat
+from copy import deepcopy
 import math
 
 manager = Manager()
-shared_data_list = manager.list()
+shared_data_list = manager.dict()
+#shared_dlib = manager.dict()
+#shared_exactL = manager.dict()
 shared_soln_list = manager.list()
-shared_solutions = manager.list()
-
+shared_solutions = manager.dict()
+logiclibs = manager.list()
 
 def parallelReadYAML(files, tid, n_cores, archs):
-    res = []
+    res = {}
     npt = math.ceil(len(files) / n_cores)
     for i in range(npt * tid, min(npt * (tid + 1), len(files))):
         data = read(files[i], True)
@@ -473,9 +464,21 @@ def parallelReadYAML(files, tid, n_cores, archs):
         data = parseLibraryLogicDataAndFilter(data, files[i], archs)
         if data:
             data["dataID"] = i
-            res.append(data)
-        
-    shared_data_list.extend(res)
+            data["srcFile"] = files[i]
+            if i not in shared_data_list:
+                res[i] = data
+    shared_data_list.update(res)
+                
+keys_to_copy = [
+    "ScheduleName",
+    "ArchitectureName",
+    #"ExactLogic",
+    "srcFile",
+    "ProblemType",
+    "CUCount",
+    "PerfMetric",
+    "LibraryType",
+    ]
 
 def parallelReadSoln(dataList, tid, n_cores):
     res = []
@@ -484,8 +487,11 @@ def parallelReadSoln(dataList, tid, n_cores):
         data = dataList[i]
         for solutionState in data["Solutions"]:
             solutionState["dataID"] = i
-            solutionState["CUCount"] = data["CUCount"]
-            solutionState["ProblemType"] = data["ProblemType"]
+            solutionState["dataLite"] = {}
+
+            for k in keys_to_copy:
+                solutionState["dataLite"][k] = data[k]
+
             if "KernelLanguage" not in solutionState.keys():
                 solutionState["KernelLanguage"] = Common.defaultSolution["KernelLanguage"]
             if solutionState["KernelLanguage"] == "Assembly":
@@ -493,15 +499,20 @@ def parallelReadSoln(dataList, tid, n_cores):
             else:
                 solutionState["ISA"] = (0, 0, 0)
             res.append(solutionState)
+        # Not needed anymore?    
+        del dataList[i]["Solutions"]
     shared_soln_list.extend(res)
 
 def parallelUnpackSoln(solnList, tid, n_cores):
-    res = []
+    res = {}
     npt = math.ceil(len(solnList) / n_cores)
 
-    # unpack solution
-    def solutionStateToSolution(solutionState) -> Solution:
-
+    t0 = time.time()
+    for i in range(npt * tid, min(npt * (tid + 1), len(solnList))):
+        #print("Start:", i)
+        solutionState = solnList[i]
+        dataID = solutionState["dataID"]
+        if dataID not in res.keys(): res[dataID] = list()
         # If parameter not in yaml, fill with default values
         if "CustomKernelName" not in solutionState.keys():
             solutionState["CustomKernelName"] = Common.defaultSolution["CustomKernelName"]
@@ -517,21 +528,42 @@ def parallelUnpackSoln(solnList, tid, n_cores):
             for key, value in customConfig.items():
                 solutionState[key] = value
         solutionObject = Solution(solutionState)
-        return solutionObject
-
-    for i in range(npt * tid, min(npt * (tid + 1), len(solnList))):
-        #print("Start:", i)
-        solutionState = solnList[i]
-        solnObj = solutionStateToSolution(solutionState)
-        solnObj._state["dataID"] = solutionState["dataID"]
-        res.append(solnObj)
+        solutionObject._state["dataID"] = dataID
+        res[dataID].append(solutionObject)
+        #res.append(solutionObject)
         #print("End:", i)
 
-    shared_solutions.extend(res)
+    for ids in res.keys():
+        shared_solutions[ids].extend(res[ids])
+        #print("tid:", tid, " ids:", ids, " len", len(shared_solutions[ids]), " len2,", len(res[ids]))
+    t1 = time.time()
+    print("Time for", tid, " to process locally:", t1 - t0, type(shared_solutions), len(res))
     
-    
+
+import pickle
+def parallelCreateLib(shared_solutions, logiclibs, tid, n_cores):
+    res = []
+    npt = math.ceil(len(shared_solutions) / n_cores)
+    #print("createLib: ", type(shared_solutions))
+    for i in range(npt * tid, min(npt * (tid + 1), len(shared_solutions))):
+        solutions = shared_solutions[i]
+        #print("i =", i, type(solutions), " len =", len(solutions))
+        if len(solutions) == 0: continue
+        data = shared_data_list[solutions[0]["dataID"]]
+        problemType = ProblemType(data["ProblemType"])
+        newLibrary, _ = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions)
+
+        #rv = LibraryLogic(data["ScheduleName"], data["ArchitectureName"], problemType, solutions, \
+        #                  data.get("ExactLogic"), newLibrary, data["srcFile"])
+        rv = LibraryLogic(data["ScheduleName"], data["ArchitectureName"], problemType, solutions, \
+                          data.get("ExactLogic"), newLibrary, data["srcFile"])
+        res.append(pickle.dumps(rv))
+    #print("TID:", tid," partial lib len:", len(res))
+    logiclibs.extend(res)
+
+
 def parseLibraryLogicFiles(files, archs=None):
-    n_cores = cpu_count()
+    n_cores = 64
     tid = range(0, n_cores)
     print("Using " + str(n_cores) + " processes")
 
@@ -548,10 +580,17 @@ def parseLibraryLogicFiles(files, archs=None):
     print("Time to read get kernels:", t1 - t0)
     print("# soln:", len(shared_soln_list))
 
-    t0 = time.time()
-    sorted_data_list = sorted(shared_data_list, key=lambda d: d['dataID'])
-    t1 = time.time()
-    print("Time to sort data lists:", t1 - t0)
+    #t0 = time.time()
+    #sorted_data_list = sorted(shared_data_list, key=lambda d: d['dataID'])
+    #t1 = time.time()
+    #print("Time to sort data lists:", t1 - t0)
+
+
+    for k in shared_data_list.keys():
+        shared_solutions[k] = manager.list()
+    
+    #print("shared_data_list size,", len(shared_data_list))
+    #print("shared_solutions size,", len(shared_solutions))
     
     t0 = time.time()
     r_n_cores = n_cores
@@ -561,7 +600,21 @@ def parseLibraryLogicFiles(files, archs=None):
     t1 = time.time()
     print("Time to read get unpack kernels:", t1 - t0)
     print("# soln:", len(shared_solutions))
-    
+
+
+    t0 = time.time()
+    r_n_cores = n_cores
+    with Pool(r_n_cores) as p:
+        p.starmap(parallelCreateLib, zip(repeat(shared_solutions), repeat(logiclibs), tid, repeat(r_n_cores)))
+    #parallelCreateLib(shared_solutions, logiclibs, 0, 1)
+    t1 = time.time()
+    print("Time to create logic libs:", t1 - t0)
+    print("libs len =", len(logiclibs))
+    lib = []
+    for l in logiclibs:
+        lib.append(pickle.loads(l))
+    return lib
+
 
 #################
 # Other functions
