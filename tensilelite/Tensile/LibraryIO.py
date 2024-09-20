@@ -242,13 +242,43 @@ class LibraryLogic(NamedTuple):
     library: SolutionLibrary.MasterSolutionLibrary
     srcFile: str
 
+import time
 
 def parseLibraryLogicFile(filename, archs=None):
+    t0 = time.time()
+    f = read(filename, True)
+    t1 = time.time()
+    print("parseLibraryLogicFile: Time to read file:", t1 - t0)
     """Wrapper function to read and parse a library logic file."""
-    return parseLibraryLogicData(read(filename, True), filename, archs)
+    return parseLibraryLogicData(f, filename, archs)
 
+def parseLibraryLogicDataAndFilter(data, srcFile="?", archs=None):
+    """Parses the data of a library logic file."""
+    if isinstance(data, List):
+        data = parseLibraryLogicList(data, srcFile)
+
+    is_arch_valid = lambda cArch, tArch : (cArch == tArch or cArch == "all")
+    if not (archs is None) and "ArchitectureName" in data:
+        if isinstance(archs, List):
+            if len(archs) > 0 and not archs[0] == "all":
+                if not (any(is_arch_valid(arch.split(":")[0], data["ArchitectureName"]) for arch in archs)):
+                    return dict()
+        elif isinstance(archs, str):
+            if not is_arch_valid(archs.split(":")[0], data["ArchitectureName"]):
+                return dict()
+
+    if "CUCount" not in data:
+        data["CUCount"] = None
+
+    if not versionIsCompatible(data["MinimumRequiredVersion"]):
+        printWarning("Version = {} in library logic file {} does not match Tensile version = {}" \
+                .format(srcFile, data["MinimumRequiredVersion"], __version__) )
+
+    return data
+            
 
 def parseLibraryLogicData(data, srcFile="?", archs=None):
+    t0_ = time.time()
     """Parses the data of a library logic file."""
     if isinstance(data, List):
         data = parseLibraryLogicList(data, srcFile)
@@ -282,7 +312,7 @@ def parseLibraryLogicData(data, srcFile="?", archs=None):
         if "CustomKernelName" not in solutionState.keys():
             solutionState["CustomKernelName"] = Common.defaultSolution["CustomKernelName"]
 
-        solutionState["ProblemType"] = data["ProblemType"];
+        solutionState["ProblemType"] = data["ProblemType"]
 
         if solutionState["KernelLanguage"] == "Assembly":
             solutionState["ISA"] = Common.gfxArch(data["ArchitectureName"])
@@ -303,12 +333,50 @@ def parseLibraryLogicData(data, srcFile="?", archs=None):
 
         return solutionObject
 
+    t0 = time.time()
     solutions = [solutionStateToSolution(solutionState) for solutionState in data["Solutions"]]
-
+    t1 = time.time()
+    
     newLibrary, _ = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions)
+    t2 = time.time()
+    rv = LibraryLogic(data["ScheduleName"], data["ArchitectureName"], problemType, solutions, \
+             data.get("ExactLogic"), newLibrary, srcFile)
+    t1_ = time.time()
+    print("Time to get solutions:", t1 - t0)
+    print("Time to get newLibrary:", t2 - t1)
+    print("Time to get LibraryLogic:", t1_ - t2)
+    print("Number of solutions:", len(data["Solutions"]), ", time:", t1_ - t0_)
+    return rv 
 
-    return LibraryLogic(data["ScheduleName"], data["ArchitectureName"], problemType, solutions, \
-            data.get("ExactLogic"), newLibrary, srcFile)
+
+
+def parseLibraryLogicData2(data, srcFile="?", archs=None):
+    t0_ = time.time()
+    """Parses the data of a library logic file."""
+    if isinstance(data, List):
+        data = parseLibraryLogicList(data, srcFile)
+
+    is_arch_valid = lambda cArch, tArch : (cArch == tArch or cArch == "all")
+    if not (archs is None) and "ArchitectureName" in data:
+        if isinstance(archs, List):
+            if len(archs) > 0 and not archs[0] == "all":
+                if not (any(is_arch_valid(arch.split(":")[0], data["ArchitectureName"]) for arch in archs)):
+                    return LibraryLogic("", "", None, [], [], None, srcFile)
+        elif isinstance(archs, str):
+            if not is_arch_valid(archs.split(":")[0], data["ArchitectureName"]):
+                return LibraryLogic("", "", None, [], [], None, srcFile)
+
+    if "CUCount" not in data:
+        data["CUCount"] = None
+
+    if not versionIsCompatible(data["MinimumRequiredVersion"]):
+        printWarning("Version = {} in library logic file {} does not match Tensile version = {}" \
+                .format(srcFile, data["MinimumRequiredVersion"], __version__) )
+
+    # unpack problemType
+    problemType = ProblemType(data["ProblemType"])
+
+    return [problemType, data["Solutions"]]
 
 
 def parseLibraryLogicList(data, srcFile="?"):
@@ -383,6 +451,117 @@ def rawLibraryLogic(data):
     return (versionString, scheduleName, architectureName, deviceNames,\
             problemTypeState, solutionStates, indexOrder, exactLogic, rangeLogic, otherFields)
 
+
+import multiprocessing
+from multiprocessing import cpu_count
+from multiprocessing import Manager, Pool
+from itertools import repeat
+import math
+
+manager = Manager()
+shared_data_list = manager.list()
+shared_soln_list = manager.list()
+shared_solutions = manager.list()
+
+
+def parallelReadYAML(files, tid, n_cores, archs):
+    res = []
+    npt = math.ceil(len(files) / n_cores)
+    for i in range(npt * tid, min(npt * (tid + 1), len(files))):
+        data = read(files[i], True)
+        #print(type(data))
+        data = parseLibraryLogicDataAndFilter(data, files[i], archs)
+        if data:
+            data["dataID"] = i
+            res.append(data)
+        
+    shared_data_list.extend(res)
+
+def parallelReadSoln(dataList, tid, n_cores):
+    res = []
+    npt = math.ceil(len(dataList) / n_cores)
+    for i in range(npt * tid, min(npt * (tid + 1), len(dataList))):
+        data = dataList[i]
+        for solutionState in data["Solutions"]:
+            solutionState["dataID"] = i
+            solutionState["CUCount"] = data["CUCount"]
+            solutionState["ProblemType"] = data["ProblemType"]
+            if "KernelLanguage" not in solutionState.keys():
+                solutionState["KernelLanguage"] = Common.defaultSolution["KernelLanguage"]
+            if solutionState["KernelLanguage"] == "Assembly":
+                solutionState["ISA"] = Common.gfxArch(data["ArchitectureName"])
+            else:
+                solutionState["ISA"] = (0, 0, 0)
+            res.append(solutionState)
+    shared_soln_list.extend(res)
+
+def parallelUnpackSoln(solnList, tid, n_cores):
+    res = []
+    npt = math.ceil(len(solnList) / n_cores)
+
+    # unpack solution
+    def solutionStateToSolution(solutionState) -> Solution:
+
+        # If parameter not in yaml, fill with default values
+        if "CustomKernelName" not in solutionState.keys():
+            solutionState["CustomKernelName"] = Common.defaultSolution["CustomKernelName"]
+
+        # force redo the deriving of parameters, make sure old version logic yamls can be validated
+        solutionState["AssignedProblemIndependentDerivedParameters"] = False
+        solutionState["AssignedDerivedParameters"] = False
+        if solutionState["CustomKernelName"]:
+            isp = {}
+            if "InternalSupportParams" in solutionState:
+                isp = solutionState["InternalSupportParams"]
+            customConfig = getCustomKernelConfig(solutionState["CustomKernelName"], isp)
+            for key, value in customConfig.items():
+                solutionState[key] = value
+        solutionObject = Solution(solutionState)
+        return solutionObject
+
+    for i in range(npt * tid, min(npt * (tid + 1), len(solnList))):
+        #print("Start:", i)
+        solutionState = solnList[i]
+        solnObj = solutionStateToSolution(solutionState)
+        solnObj._state["dataID"] = solutionState["dataID"]
+        res.append(solnObj)
+        #print("End:", i)
+
+    shared_solutions.extend(res)
+    
+    
+def parseLibraryLogicFiles(files, archs=None):
+    n_cores = cpu_count()
+    tid = range(0, n_cores)
+    print("Using " + str(n_cores) + " processes")
+
+    t0 = time.time()
+    with Pool(n_cores) as p:
+        p.starmap(parallelReadYAML, zip(repeat(files), tid, repeat(n_cores), repeat(archs)))
+    t1 = time.time()
+    print("Time to read all files:", t1 - t0)
+
+    t0 = time.time()
+    with Pool(n_cores) as p:
+        p.starmap(parallelReadSoln, zip(repeat(shared_data_list), tid, repeat(n_cores)))
+    t1 = time.time()
+    print("Time to read get kernels:", t1 - t0)
+    print("# soln:", len(shared_soln_list))
+
+    t0 = time.time()
+    sorted_data_list = sorted(shared_data_list, key=lambda d: d['dataID'])
+    t1 = time.time()
+    print("Time to sort data lists:", t1 - t0)
+    
+    t0 = time.time()
+    r_n_cores = n_cores
+    with Pool(r_n_cores) as p:
+        p.starmap(parallelUnpackSoln, zip(repeat(shared_soln_list), tid, repeat(r_n_cores)))
+    #parallelUnpackSoln(shared_soln_list, 0, 1)
+    t1 = time.time()
+    print("Time to read get unpack kernels:", t1 - t0)
+    print("# soln:", len(shared_solutions))
+    
 
 #################
 # Other functions

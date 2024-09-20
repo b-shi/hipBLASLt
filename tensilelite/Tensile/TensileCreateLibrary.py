@@ -1071,6 +1071,8 @@ def generateKernelObjectsFromSolutions(solutions):
 ################################################################################
 # Generate Logic Data and Solutions
 ################################################################################
+import time
+
 @timing
 def generateLogicDataAndSolutions(logicFiles, args):
 
@@ -1095,9 +1097,32 @@ def generateLogicDataAndSolutions(logicFiles, args):
       for _, lazyLib in lib.lazyLibraries.items():
         yield from libraryIter(lazyLib)
 
-  for library in Common.ParallelMap2(LibraryIO.parseLibraryLogicFile, fIter, "Loading Logics...", return_as="generator_unordered"):
-    _, architectureName, _, _, _, newLibrary, srcFile = library
+  print("Num logic files to process:", len(logicFiles))
+  start = time.time()
+  t0 = time.time()
+  #res = Common.ParallelMap2(LibraryIO.parseLibraryLogicFile, fIter, "Loading Logics...")
+  res = []
 
+
+
+
+  LibraryIO.parseLibraryLogicFiles(logicFiles, archs)
+
+
+
+    
+  t1 = time.time()
+  print("Time to parse library logic:", t1 - t0)
+  exit(1)
+  t0 = time.time()
+  count = 0
+  print("Type res:", type(res))
+  for library in res:
+    t0__ = time.time()  
+    _, architectureName, _, _, _, newLibrary, srcFile = library
+    t1__ = time.time()  
+    print("first line", count, " time:", t1__ - t0__)
+    
     if architectureName == "":
       continue
 
@@ -1108,11 +1133,14 @@ def generateLogicDataAndSolutions(logicFiles, args):
         masterLibraries[architectureName] = newLibrary
         masterLibraries[architectureName].version = args.version
     elif globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"]:
+      t0_ = time.time()
       if architectureName in masterLibraries:
         nextSolIndex = masterLibraries[architectureName].merge(newLibrary, nextSolIndex)
       else:
         masterLibraries[architectureName] = newLibrary
         masterLibraries[architectureName].version = args.version
+      t1_ = time.time()
+      print("Time to merge", count, " :", t1_ - t0_)
     else:
       if fullMasterLibrary is None:
         fullMasterLibrary = newLibrary
@@ -1121,10 +1149,17 @@ def generateLogicDataAndSolutions(logicFiles, args):
         fullMasterLibrary.merge(newLibrary)
 
     if args.GenSolTable:
+      t0_ = time.time()
       # Match yaml file solutions to solution index
       for localIdx, _, s in libraryIter(newLibrary):
         matchTable[s.index] = [srcFile, localIdx]
-
+      t1_ = time.time()
+      print("Time to match yaml file soln", count, " :", t1_ - t0_)
+      
+    count += 1
+  t1 = time.time()
+  print("First for loop time:", t1 - t0, ", count =", count)
+  exit(1)
   if globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"]:
     if "fallback" in masterLibraries.keys():
       for key, value in masterLibraries.items():
@@ -1143,6 +1178,8 @@ def generateLogicDataAndSolutions(logicFiles, args):
   else:
     solutions = [sol.originalSolution for _, sol in fullMasterLibrary.solutions.items()]
 
+  end = time.time()
+  print("Done, elapsed time:", end-start)
   # remove duplicates while preserving order
   solutions = dict.fromkeys(solutions).keys()
 

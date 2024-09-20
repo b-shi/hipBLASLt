@@ -172,6 +172,7 @@ def ParallelMapReturnAsGenerator(function, objects, message="", enable=True, mul
     resultFutures = (executor.submit(function, *arg if multiArg else arg) for arg in objects)
     for result in concurrent.futures.as_completed(resultFutures):
       yield result.result()
+    #concurrent.futures.wait(resultFutures)
 
 def ParallelMap2(function, objects, message="", enable=True, multiArg=True, return_as="list"):
   """
