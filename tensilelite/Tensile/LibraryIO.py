@@ -25,6 +25,7 @@
 from .Common import printExit, printWarning, versionIsCompatible
 from .CustomKernels import getCustomKernelConfig
 from .SolutionStructs import Solution, ProblemSizes, ProblemType
+from . import Parallel
 from . import __version__
 from . import Common
 from . import SolutionLibrary
@@ -33,6 +34,15 @@ from .CustomYamlLoader import load_yaml_stream
 from typing import NamedTuple, List
 import os
 import sys
+
+import multiprocessing
+from multiprocessing import cpu_count
+from multiprocessing import Manager, Pool
+from itertools import repeat
+from copy import deepcopy
+import math
+
+manager = Manager()
 
 try:
     import orjson as json
@@ -274,33 +284,11 @@ def parseLibraryLogicDataAndFilter(data, srcFile="?", archs=None):
     return data
 
 
-def parseLibraryLogicData(data, srcFile="?", archs=None):
-    """Parses the data of a library logic file."""
-    if isinstance(data, List):
-        data = parseLibraryLogicList(data, srcFile)
-
-    is_arch_valid = lambda cArch, tArch : (cArch == tArch or cArch == "all")
-    if not (archs is None) and "ArchitectureName" in data:
-        if isinstance(archs, List):
-            if len(archs) > 0 and not archs[0] == "all":
-                if not (any(is_arch_valid(arch.split(":")[0], data["ArchitectureName"]) for arch in archs)):
-                    return LibraryLogic("", "", None, [], [], None, srcFile)
-        elif isinstance(archs, str):
-            if not is_arch_valid(archs.split(":")[0], data["ArchitectureName"]):
-                return LibraryLogic("", "", None, [], [], None, srcFile)
-
-    if "CUCount" not in data:
-        data["CUCount"] = None
-
-    if not versionIsCompatible(data["MinimumRequiredVersion"]):
-        printWarning("Version = {} in library logic file {} does not match Tensile version = {}" \
-                .format(srcFile, data["MinimumRequiredVersion"], __version__) )
-
-    # unpack problemType
-    problemType = ProblemType(data["ProblemType"])
+def parUnpackSoln(solutionList, solutions, tid, n_cores, data):
+    npt = math.ceil(len(solutionList) / n_cores)
 
     # unpack solution
-    def solutionStateToSolution(solutionState) -> Solution:
+    def solutionStateToSolution(solutionState, data) -> Solution:
 
         # If parameter not in yaml, fill with default values
         if "KernelLanguage" not in solutionState.keys():
@@ -329,17 +317,14 @@ def parseLibraryLogicData(data, srcFile="?", archs=None):
 
         return solutionObject
 
-    solutions = [solutionStateToSolution(solutionState) for solutionState in data["Solutions"]]
+    res = []
+    for i in range(npt * tid, min(npt * (tid + 1), len(solutionList))):
+        solutionState = solutionList[i]
+        res.append(solutionStateToSolution(solutionState, data))
+    solutions.extend(res)
 
-    newLibrary, _ = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions)
-    rv = LibraryLogic(data["ScheduleName"], data["ArchitectureName"], problemType, solutions, \
-             data.get("ExactLogic"), newLibrary, srcFile)
-    return rv
-
-
-
-def parseLibraryLogicData2(data, srcFile="?", archs=None):
-    t0_ = time.time()
+        
+def parseLibraryLogicData(data, srcFile="?", archs=None):
     """Parses the data of a library logic file."""
     if isinstance(data, List):
         data = parseLibraryLogicList(data, srcFile)
@@ -364,8 +349,36 @@ def parseLibraryLogicData2(data, srcFile="?", archs=None):
     # unpack problemType
     problemType = ProblemType(data["ProblemType"])
 
-    return [problemType, data["Solutions"]]
+    #solutions = [solutionStateToSolution(solutionState) for solutionState in data["Solutions"]]
 
+    dataLite = {}
+    dataLite["CUCount"] = data["CUCount"]
+    dataLite["ArchitectureName"] = data["ArchitectureName"]
+    dataLite["ProblemType"] = data["ProblemType"]
+    
+    n_cores = min( int(len(data["Solutions"]) / 650), Parallel.CPUThreadCount())
+    #print("len soln", len(data["Solutions"]))
+    solutions = None
+    #t0 = time.time()
+    if n_cores <= 1:
+        solutions = []
+        parUnpackSoln(data["Solutions"], solutions, 0, 1, dataLite)
+    else:
+        solutions = manager.list()
+        tid = range(0, n_cores)
+
+        with Pool(n_cores) as p:
+            p.starmap(parUnpackSoln, zip(repeat(data["Solutions"]), repeat(solutions), tid, repeat(n_cores), repeat(dataLite)))
+    #t1 = time.time()
+    #print("Time to read all files:", t1 - t0)
+    
+    del data["Solutions"]    
+    newLibrary, _ = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions)
+    del data["ProblemType"]
+
+    rv = LibraryLogic(data["ScheduleName"], data["ArchitectureName"], problemType, solutions, \
+             data.get("ExactLogic"), newLibrary, srcFile)
+    return rv
 
 def parseLibraryLogicList(data, srcFile="?"):
     """Parses the data of a matching table style library logic file."""
@@ -417,7 +430,6 @@ def parseLibraryLogicList(data, srcFile="?"):
 
     return rv
 
-
 def rawLibraryLogic(data):
     """Returns a tuple of the data in a library logic file."""
     versionString = data[0]
@@ -438,183 +450,6 @@ def rawLibraryLogic(data):
 
     return (versionString, scheduleName, architectureName, deviceNames,\
             problemTypeState, solutionStates, indexOrder, exactLogic, rangeLogic, otherFields)
-
-
-import multiprocessing
-from multiprocessing import cpu_count
-from multiprocessing import Manager, Pool
-from itertools import repeat
-from copy import deepcopy
-import math
-
-manager = Manager()
-shared_data_list = manager.dict()
-#shared_dlib = manager.dict()
-#shared_exactL = manager.dict()
-shared_soln_list = manager.list()
-shared_solutions = manager.dict()
-logiclibs = manager.list()
-
-def parallelReadYAML(files, tid, n_cores, archs):
-    res = {}
-    npt = math.ceil(len(files) / n_cores)
-    for i in range(npt * tid, min(npt * (tid + 1), len(files))):
-        data = read(files[i], True)
-        #print(type(data))
-        data = parseLibraryLogicDataAndFilter(data, files[i], archs)
-        if data:
-            data["dataID"] = i
-            data["srcFile"] = files[i]
-            if i not in shared_data_list:
-                res[i] = data
-    shared_data_list.update(res)
-                
-keys_to_copy = [
-    "ScheduleName",
-    "ArchitectureName",
-    #"ExactLogic",
-    "srcFile",
-    "ProblemType",
-    "CUCount",
-    "PerfMetric",
-    "LibraryType",
-    ]
-
-def parallelReadSoln(dataList, tid, n_cores):
-    res = []
-    npt = math.ceil(len(dataList) / n_cores)
-    for i in range(npt * tid, min(npt * (tid + 1), len(dataList))):
-        data = dataList[i]
-        for solutionState in data["Solutions"]:
-            solutionState["dataID"] = i
-            solutionState["dataLite"] = {}
-
-            for k in keys_to_copy:
-                solutionState["dataLite"][k] = data[k]
-
-            if "KernelLanguage" not in solutionState.keys():
-                solutionState["KernelLanguage"] = Common.defaultSolution["KernelLanguage"]
-            if solutionState["KernelLanguage"] == "Assembly":
-                solutionState["ISA"] = Common.gfxArch(data["ArchitectureName"])
-            else:
-                solutionState["ISA"] = (0, 0, 0)
-            res.append(solutionState)
-        # Not needed anymore?    
-        del dataList[i]["Solutions"]
-    shared_soln_list.extend(res)
-
-def parallelUnpackSoln(solnList, tid, n_cores):
-    res = {}
-    npt = math.ceil(len(solnList) / n_cores)
-
-    t0 = time.time()
-    for i in range(npt * tid, min(npt * (tid + 1), len(solnList))):
-        #print("Start:", i)
-        solutionState = solnList[i]
-        dataID = solutionState["dataID"]
-        if dataID not in res.keys(): res[dataID] = list()
-        # If parameter not in yaml, fill with default values
-        if "CustomKernelName" not in solutionState.keys():
-            solutionState["CustomKernelName"] = Common.defaultSolution["CustomKernelName"]
-
-        # force redo the deriving of parameters, make sure old version logic yamls can be validated
-        solutionState["AssignedProblemIndependentDerivedParameters"] = False
-        solutionState["AssignedDerivedParameters"] = False
-        if solutionState["CustomKernelName"]:
-            isp = {}
-            if "InternalSupportParams" in solutionState:
-                isp = solutionState["InternalSupportParams"]
-            customConfig = getCustomKernelConfig(solutionState["CustomKernelName"], isp)
-            for key, value in customConfig.items():
-                solutionState[key] = value
-        solutionObject = Solution(solutionState)
-        solutionObject._state["dataID"] = dataID
-        res[dataID].append(solutionObject)
-        #res.append(solutionObject)
-        #print("End:", i)
-
-    for ids in res.keys():
-        shared_solutions[ids].extend(res[ids])
-        #print("tid:", tid, " ids:", ids, " len", len(shared_solutions[ids]), " len2,", len(res[ids]))
-    t1 = time.time()
-    print("Time for", tid, " to process locally:", t1 - t0, type(shared_solutions), len(res))
-    
-
-import pickle
-def parallelCreateLib(shared_solutions, logiclibs, tid, n_cores):
-    res = []
-    npt = math.ceil(len(shared_solutions) / n_cores)
-    #print("createLib: ", type(shared_solutions))
-    for i in range(npt * tid, min(npt * (tid + 1), len(shared_solutions))):
-        solutions = shared_solutions[i]
-        #print("i =", i, type(solutions), " len =", len(solutions))
-        if len(solutions) == 0: continue
-        data = shared_data_list[solutions[0]["dataID"]]
-        problemType = ProblemType(data["ProblemType"])
-        newLibrary, _ = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions)
-
-        #rv = LibraryLogic(data["ScheduleName"], data["ArchitectureName"], problemType, solutions, \
-        #                  data.get("ExactLogic"), newLibrary, data["srcFile"])
-        rv = LibraryLogic(data["ScheduleName"], data["ArchitectureName"], problemType, solutions, \
-                          data.get("ExactLogic"), newLibrary, data["srcFile"])
-        res.append(pickle.dumps(rv))
-    #print("TID:", tid," partial lib len:", len(res))
-    logiclibs.extend(res)
-
-
-def parseLibraryLogicFiles(files, archs=None):
-    n_cores = 64
-    tid = range(0, n_cores)
-    print("Using " + str(n_cores) + " processes")
-
-    t0 = time.time()
-    with Pool(n_cores) as p:
-        p.starmap(parallelReadYAML, zip(repeat(files), tid, repeat(n_cores), repeat(archs)))
-    t1 = time.time()
-    print("Time to read all files:", t1 - t0)
-
-    t0 = time.time()
-    with Pool(n_cores) as p:
-        p.starmap(parallelReadSoln, zip(repeat(shared_data_list), tid, repeat(n_cores)))
-    t1 = time.time()
-    print("Time to read get kernels:", t1 - t0)
-    print("# soln:", len(shared_soln_list))
-
-    #t0 = time.time()
-    #sorted_data_list = sorted(shared_data_list, key=lambda d: d['dataID'])
-    #t1 = time.time()
-    #print("Time to sort data lists:", t1 - t0)
-
-
-    for k in shared_data_list.keys():
-        shared_solutions[k] = manager.list()
-    
-    #print("shared_data_list size,", len(shared_data_list))
-    #print("shared_solutions size,", len(shared_solutions))
-    
-    t0 = time.time()
-    r_n_cores = n_cores
-    with Pool(r_n_cores) as p:
-        p.starmap(parallelUnpackSoln, zip(repeat(shared_soln_list), tid, repeat(r_n_cores)))
-    #parallelUnpackSoln(shared_soln_list, 0, 1)
-    t1 = time.time()
-    print("Time to read get unpack kernels:", t1 - t0)
-    print("# soln:", len(shared_solutions))
-
-
-    t0 = time.time()
-    r_n_cores = n_cores
-    with Pool(r_n_cores) as p:
-        p.starmap(parallelCreateLib, zip(repeat(shared_solutions), repeat(logiclibs), tid, repeat(r_n_cores)))
-    #parallelCreateLib(shared_solutions, logiclibs, 0, 1)
-    t1 = time.time()
-    print("Time to create logic libs:", t1 - t0)
-    print("libs len =", len(logiclibs))
-    lib = []
-    for l in logiclibs:
-        lib.append(pickle.loads(l))
-    return lib
-
 
 #################
 # Other functions

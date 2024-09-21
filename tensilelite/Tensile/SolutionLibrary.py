@@ -28,8 +28,17 @@ from . import Properties
 from . import Hardware
 from . import Common
 from . import Contractions
+from . import Parallel
 from .SolutionStructs import Solution as OriginalSolution
 from .Utils import state
+
+import multiprocessing
+from multiprocessing import cpu_count
+from multiprocessing import Manager, Pool
+from itertools import repeat
+import math
+
+manager = Manager()
 
 class SingleSolutionLibrary:
     Tag = "Single"
@@ -296,6 +305,14 @@ class MasterSolutionLibrary:
             else:
                 solutionsSoFar.add(solution.index)
 
+    def foo(origSolutions, allSolutions, solutionClass, tid, n_cores):
+        npt = math.ceil(len(origSolutions) / n_cores)
+        res = []
+        for i in range(npt * tid, min(npt * (tid + 1), len(origSolutions))):
+            s = origSolutions[i]
+            res.append(solutionClass.FromSolutionStruct(s))
+        allSolutions.extend(res)
+                
     @classmethod
     def FromOriginalState(cls,
                           origData,
@@ -457,7 +474,27 @@ class MasterSolutionLibrary:
             origSolutions = []
 
         problemType = Contractions.ProblemType.FromOriginalState(origData["ProblemType"])
+            
+        #n_cores = min( int(len(origSolutions) / 650), Parallel.CPUThreadCount())
+        #print("len soln", len(data["Solutions"]))
+        #allSolutions = None
+        #t0 = time.time()
+        #if n_cores <= 1:
+        #    allSolutions = []
+        #    MasterSolutionLibrary.foo(origSolutions, allSolutions, solutionClass, 0, 1)
+        #else:
+        #    allSolutions = manager.list()
+        #    tid = range(0, n_cores)
+#
+ #           with Pool(n_cores) as p:
+  #              p.starmap(MasterSolutionLibrary.foo, zip(repeat(origSolutions), repeat(allSolutions), repeat(solutionClass), tid, repeat(n_cores)))
+        
+        
         allSolutions = [solutionClass.FromSolutionStruct(s) for s in origSolutions]
+
+
+        
+
         cls.FixSolutionIndices(allSolutions)
 
         # library is constructed in reverse order i.e. bottom-up

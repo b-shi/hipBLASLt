@@ -1099,19 +1099,9 @@ def generateLogicDataAndSolutions(logicFiles, args):
 
   print("Num logic files to process:", len(logicFiles))
   start = time.time()
-  t0 = time.time()
-  res = Common.ParallelMap2(LibraryIO.parseLibraryLogicFile, fIter, "Loading Logics...", return_as="generator_unordered")
-  #res = LibraryIO.parseLibraryLogicFiles(logicFiles, archs)
 
-  #print("len res,", len(res))
-  #print("len res,", len(res))
-    
-  t1 = time.time()
-  print("Time to parse library logic:", t1 - t0)
-  #exit(1)
   t0 = time.time()
-  print("Type res:", type(res))
-  for library in res:
+  for library in Common.ParallelMap2(LibraryIO.parseLibraryLogicFile, fIter, "Loading Logics...", return_as="generator_unordered"):
     _, architectureName, _, _, _, newLibrary, srcFile = library
     
     if architectureName == "":
@@ -1142,7 +1132,7 @@ def generateLogicDataAndSolutions(logicFiles, args):
         matchTable[s.index] = [srcFile, localIdx]
       
   t1 = time.time()
-  print("First for loop time:", t1 - t0, ", count =", count)
+  print("First for loop time:", t1 - t0)
   #exit(1)
   if globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"]:
     if "fallback" in masterLibraries.keys():
@@ -1164,6 +1154,7 @@ def generateLogicDataAndSolutions(logicFiles, args):
 
   end = time.time()
   print("Done, elapsed time:", end-start)
+  #exit(1)
   # remove duplicates while preserving order
   solutions = dict.fromkeys(solutions).keys()
 
@@ -1245,6 +1236,8 @@ def validateLibrary(masterLibraries: MasterSolutionLibrary,
 
   assert ok and "Inconsistent kernel sizes detected!"
 
+#import cProfile, pstats, sys
+  
 ################################################################################
 # Tensile Create Library
 ################################################################################
@@ -1375,8 +1368,11 @@ def TensileCreateLibrary():
   for key, value in args.global_parameters:
     arguments[key] = value
 
+  t0 = time.time()
   assignGlobalParameters(arguments)
-
+  t1 = time.time()
+  print("Assign global arg time:", t1-t0)
+  
   print1("# CodeObjectVersion from TensileCreateLibrary: %s" % arguments["CodeObjectVersion"])
   print1("# CxxCompiler       from TensileCreateLibrary: %s" % CxxCompiler)
   print1("# Architecture      from TensileCreateLibrary: %s" % arguments["Architecture"])
@@ -1416,6 +1412,8 @@ def TensileCreateLibrary():
 
   logicFiles = []
 
+  print("Start find file")
+  
   for root, _, files in os.walk(logicPath):
     logics = (os.path.join(root, f) for f in files)
     logicFiles += [file for file in logics if validLogicFile(Path(file))]
@@ -1428,9 +1426,15 @@ def TensileCreateLibrary():
   # Parse config files
   ##############################################################################
 
+  #pr = cProfile.Profile()
+  #pr.enable()  
   # Parse logicData, solutions, and masterLibraries from logic files
   solutions, masterLibraries, fullMasterLibrary = generateLogicDataAndSolutions(logicFiles, args)
 
+  #pr.disable()
+  #ps = pstats.Stats(pr, stream=sys.stdout)
+  #ps.print_stats()
+  
   kernels, kernelHelperObjs, _ = generateKernelObjectsFromSolutions(solutions)
 
   # if any kernels are assembly, append every ISA supported
