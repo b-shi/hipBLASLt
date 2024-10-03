@@ -273,6 +273,8 @@ def parseLibraryLogicData(data, srcFile="?", archs=None):
     # unpack problemType
     problemType = ProblemType(data["ProblemType"])
 
+    defaultSolutionLibLogic = data.get("DefaultSolution", Common.defaultSolution)
+
     # unpack solution
     def solutionStateToSolution(solutionState) -> Solution:
 
@@ -283,6 +285,12 @@ def parseLibraryLogicData(data, srcFile="?", archs=None):
             solutionState["CustomKernelName"] = Common.defaultSolution["CustomKernelName"]
 
         solutionState["ProblemType"] = data["ProblemType"];
+
+        # Default parameter values in the library logic take priority over ones in Common.py
+        for param, defVal in defaultSolutionLibLogic.items():
+            if param == "SolutionIndex": continue
+            if Common.defaultSolution[param] != defVal:
+                solutionState[param] = defVal
 
         if solutionState["KernelLanguage"] == "Assembly":
             solutionState["ISA"] = Common.gfxArch(data["ArchitectureName"])
@@ -303,7 +311,6 @@ def parseLibraryLogicData(data, srcFile="?", archs=None):
             # Therefore, we override the customKernel setting with the ActivationType value from ProblemType to avoid false alarms during subsequent problemType checks.
             solutionState["ProblemType"]["ActivationType"] = problemType["ActivationType"]
         solutionObject = Solution(solutionState)
-
         return solutionObject
 
     solutions = [solutionStateToSolution(solutionState) for solutionState in data["Solutions"]]
@@ -325,6 +332,11 @@ def parseLibraryLogicList(data, srcFile="?"):
     rv["ScheduleName"] = data[1]
     rv["DeviceNames"] = data[3]
     rv["ProblemType"] = data[4]
+    if data[5][0]["SolutionIndex"] == -1:
+        rv["DefaultSolution"] = data[5][0]
+        del data[5][0]
+    else:
+        rv["DefaultSolution"] = Common.defaultSolution
     rv["Solutions"] = data[5]
 
     if type(data[2]) is dict:
@@ -464,6 +476,10 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, libraryTyp
             if "ProblemType" in solutionState.keys():
                 del solutionState["ProblemType"]
             solutionList.append(solutionState)
+
+    # Prepend defaultSolution to list for reference to default values
+    solutionList = [Common.defaultSolution] + solutionList
+    solutionList[0]["SolutionIndex"] = -1
 
     data.append(solutionList)
     # index order

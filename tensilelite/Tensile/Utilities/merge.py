@@ -175,6 +175,36 @@ def compareProblemType(oriData, incData):
     if (results):
         sys.exit(f"[Error] ProblemType in library logic doesn't match solution(idx={solIdx}): \n{results}")
 
+def syncDefaultParams(origData, incData, origDefaultValues, incDefaultValues):
+
+    if origData[5][0]["SolutionIndex"] == -1 : del origData[5][0]
+    if incData[5][0]["SolutionIndex"] == -1 : del incData[5][0]
+
+    # if orig and inc default values are the same, nothing to do
+    if origDefaultValues == incDefaultValues: return
+
+    # Parameters that have changed default values, or newly added.
+    # Assume incDefaultValues is more up-to-date
+    changedParams = []
+    if origDefaultValues["SolutionIndex"] != -1:
+      changedParams = incDefaultValues.keys()
+    else:
+      for p,v in incDefaultValues.items():
+        if p not in origDefaultValues.keys() or origDefaultValues[p] != v:
+          changedParams.append(p)
+
+    for kernel in origData[5]:
+      if kernel["SolutionIndex"] == -1: continue
+
+      for p in changedParams:
+        # Was originally set to default but not anymore
+        if p in origDefaultValues.keys() and p not in kernel.keys():
+          kernel[p] = origDefaultValues[p]
+        # Remove any keys which are now considered default-init
+        elif p in kernel.keys() and kernel[p] == incDefaultValues[p]:
+          del kernel[p]
+
+
 # this is for complying the behavior of legacy merge script, where incremental logic
 # file always replaces the base logic file even it's slower in performance -
 # in the future we may let default force merge policy = False
@@ -421,12 +451,21 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
         # Terminate when ProblemType of originalFiles and incrementalFiles mismatch
         compareProblemType(oriData, incData)
 
+        origDefaultValues = deepcopy(origData[5][0])
+        incDefaultValues = deepcopy(incData[5][0])
+
+        syncDefaultParams(origData, incData, origDefaultValues, incDefaultValues)
+
         # So far "SolutionIndex" in logic yamls has zero impact on actual 1-1 size mapping (but the order of the Solution does)
         # since mergeLogic() takes that value very seriously so we reindex them here so it doesn't choke on duplicated SolutionIndex
         oriData = reindexSolutions(oriData)
         incData = reindexSolutions(incData)
 
-        mergedData, *stats = mergeLogic(oriData, incData, forceMerge, trimSize, addSolutionTags, noEff)
+        mergedData, *stats = mergeLogic(origData, incData, forceMerge, trimSize, addSolutionTags, noEff)
+
+        # Append default parameter pseudo-kernel config to kernel list
+        mergedData[5] = [incDefaultValues] + mergedData[5]
+
         msg(stats[0], "size(s) and", stats[1], "kernel(s) added,", stats[2], "kernel(s) removed")
 
         with open(os.path.join(outputPath, basename), "w") as outFile:
@@ -459,12 +498,19 @@ def mergePartialLogics(partialLogicFilePaths, outputDir, forceMerge, trimSize=Tr
         msg("Incremental file:", f, "| Merge policy: %s"%("Forced" if forceMerge else "Winner"), "| Trim size:", trimSize)
         incLogicData = loadData(f)
 
+        baseDefaultValues = deepcopy(baseLogicData[5][0])
+        incDefaultValues = deepcopy(incLogicData[5][0])
+
+        syncDefaultParams(baseLogicData, incLogicData, baseDefaultValues, incDefaultValues)
+
         # So far "SolutionIndex" in logic yamls has zero impact on actual 1-1 size mapping (but the order of the Solution does)
         # since mergeLogic() takes that value very seriously so we reindex them here so it doesn't choke on duplicated SolutionIndex
         baseLogicData = reindexSolutions(baseLogicData)
         incLogicData = reindexSolutions(incLogicData)
 
         mergedData, *stats = mergeLogic(baseLogicData, incLogicData, forceMerge, trimSize, addSolutionTags)
+        mergedData[5] = [incDefaultValues] + mergedData[5]
+
         msg(stats[0], "size(s) and", stats[1], "kernel(s) added,", stats[2], "kernel(s) removed")
 
         # Use the merged data as the base data for the next partial logic file
