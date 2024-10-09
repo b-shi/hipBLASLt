@@ -451,17 +451,17 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
         # Terminate when ProblemType of originalFiles and incrementalFiles mismatch
         compareProblemType(oriData, incData)
 
-        origDefaultValues = deepcopy(origData[5][0])
+        origDefaultValues = deepcopy(oriData[5][0])
         incDefaultValues = deepcopy(incData[5][0])
 
-        syncDefaultParams(origData, incData, origDefaultValues, incDefaultValues)
+        syncDefaultParams(oriData, incData, origDefaultValues, incDefaultValues)
 
         # So far "SolutionIndex" in logic yamls has zero impact on actual 1-1 size mapping (but the order of the Solution does)
         # since mergeLogic() takes that value very seriously so we reindex them here so it doesn't choke on duplicated SolutionIndex
         oriData = reindexSolutions(oriData)
         incData = reindexSolutions(incData)
 
-        mergedData, *stats = mergeLogic(origData, incData, forceMerge, trimSize, addSolutionTags, noEff)
+        mergedData, *stats = mergeLogic(oriData, incData, forceMerge, trimSize, addSolutionTags, noEff)
 
         # Append default parameter pseudo-kernel config to kernel list
         mergedData[5] = [incDefaultValues] + mergedData[5]
