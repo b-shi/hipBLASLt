@@ -21,6 +21,9 @@
 #
 # ########################################################################
 
+set(BUILD_DIR "/home/brianshi/workspace/hipBLASLt-2/build")
+message("BUILDDIR: ${BUILD_DIR}")
+
 if(EXISTS          "/opt/AMD/aocl/aocl-linux-gcc-4.2.0/gcc/lib_ILP64/libblis-mt.a" )
     set( BLIS_LIB /opt/AMD/aocl/aocl-linux-gcc-4.2.0/gcc/lib_ILP64/libblis-mt.a )
     set( BLIS_INCLUDE_DIR /opt/AMD/aocl/aocl-linux-gcc-4.2.0/gcc/include_ILP64/ )
