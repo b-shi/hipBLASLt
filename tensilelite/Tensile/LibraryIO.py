@@ -273,6 +273,8 @@ def parseLibraryLogicData(data, srcFile="?", archs=None):
     # unpack problemType
     problemType = ProblemType(data["ProblemType"])
 
+    defaultSolutionLibLogic = data.get("DefaultSolution", Common.defaultSolution)
+
     # unpack solution
     def solutionStateToSolution(solutionState) -> Solution:
 
@@ -283,6 +285,12 @@ def parseLibraryLogicData(data, srcFile="?", archs=None):
             solutionState["CustomKernelName"] = Common.defaultSolution["CustomKernelName"]
 
         solutionState["ProblemType"] = data["ProblemType"];
+
+        # Default parameter values in the library logic take priority over ones in Common.py
+        for param, defVal in defaultSolutionLibLogic.items():
+            if param == "SolutionIndex": continue
+            if Common.defaultSolution[param] != defVal:
+                solutionState[param] = defVal
 
         if solutionState["KernelLanguage"] == "Assembly":
             solutionState["ISA"] = Common.gfxArch(data["ArchitectureName"])
@@ -303,7 +311,6 @@ def parseLibraryLogicData(data, srcFile="?", archs=None):
             # Therefore, we override the customKernel setting with the ActivationType value from ProblemType to avoid false alarms during subsequent problemType checks.
             solutionState["ProblemType"]["ActivationType"] = problemType["ActivationType"]
         solutionObject = Solution(solutionState)
-
         return solutionObject
 
     solutions = [solutionStateToSolution(solutionState) for solutionState in data["Solutions"]]
@@ -361,6 +368,12 @@ def parseLibraryLogicList(data, srcFile="?"):
         rv["Library"]["indexOrder"] = data[6]
         rv["Library"]["table"] = data[7]
         rv["Library"]["distance"] = libraryType
+
+    # DefaultSolution Field
+    if len(data) > 12 and data[12]:
+        rv["DefaultSolution"] = data[12]
+    else:
+        rv["DefaultSolution"] = Common.defaultSolution
 
     return rv
 
@@ -491,4 +504,6 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, libraryTyp
 
     data.append(logicTuple[7]) # PerfMetric
     data.append(libraryType) # LibraryType
+    data.append(Common.defaultSolution)
+
     return data

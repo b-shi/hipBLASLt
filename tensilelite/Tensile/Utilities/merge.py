@@ -157,7 +157,7 @@ def compareProblemType(oriData, incData):
                 except KeyError:
                     oriSolutionIndex = oriData[5][i]["SolutionIndex"]
                     print(f"[Warning] Popping '{item}' failed in oriData(idx={oriSolutionIndex})")
-        
+
     results = ""
     solIdx = 0
     # Compare existing ProblemType items of originalFiles with incrementalFiles
@@ -174,6 +174,31 @@ def compareProblemType(oriData, incData):
             break
     if (results):
         sys.exit(f"[Error] ProblemType in library logic doesn't match solution(idx={solIdx}): \n{results}")
+
+def syncDefaultParams(origData, incData, origDefaultValues, incDefaultValues):
+
+    # if orig and inc default values are the same, nothing to do
+    if origDefaultValues == incDefaultValues: return
+
+    # Parameters that have changed default values, or newly added.
+    # Assume incDefaultValues is more up-to-date
+    changedParams = []
+    if len(origDefaultValues) == 0:
+      changedParams = incDefaultValues.keys()
+    else:
+      for p,v in incDefaultValues.items():
+        if p not in origDefaultValues.keys() or origDefaultValues[p] != v:
+          changedParams.append(p)
+
+    for kernel in origData[5]:
+      for p in changedParams:
+        # Was originally set to default but not anymore
+        if p in origDefaultValues.keys() and p not in kernel.keys():
+          kernel[p] = origDefaultValues[p]
+        # Remove any keys which are now considered default-init
+        elif p in kernel.keys() and kernel[p] == incDefaultValues[p]:
+          del kernel[p]
+
 
 # this is for complying the behavior of legacy merge script, where incremental logic
 # file always replaces the base logic file even it's slower in performance -
@@ -421,12 +446,25 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
         # Terminate when ProblemType of originalFiles and incrementalFiles mismatch
         compareProblemType(oriData, incData)
 
+        # Original library logic may not have default solution included yet (for now)
+        origDefaultValues = deepcopy(oriData[12] if len(oriData) > 12 else dict())
+        incDefaultValues = deepcopy(incData[12])
+
+        syncDefaultParams(oriData, incData, origDefaultValues, incDefaultValues)
+
         # So far "SolutionIndex" in logic yamls has zero impact on actual 1-1 size mapping (but the order of the Solution does)
         # since mergeLogic() takes that value very seriously so we reindex them here so it doesn't choke on duplicated SolutionIndex
         oriData = reindexSolutions(oriData)
         incData = reindexSolutions(incData)
 
         mergedData, *stats = mergeLogic(oriData, incData, forceMerge, trimSize, addSolutionTags, noEff)
+
+        # Replace base default solution with newer version
+        if len(mergedData) > 12:
+          mergedData[12] = incData[12]
+        elif len(mergedData) > 11:
+          mergedData.append(incData[12])
+
         msg(stats[0], "size(s) and", stats[1], "kernel(s) added,", stats[2], "kernel(s) removed")
 
         with open(os.path.join(outputPath, basename), "w") as outFile:
@@ -459,12 +497,24 @@ def mergePartialLogics(partialLogicFilePaths, outputDir, forceMerge, trimSize=Tr
         msg("Incremental file:", f, "| Merge policy: %s"%("Forced" if forceMerge else "Winner"), "| Trim size:", trimSize)
         incLogicData = loadData(f)
 
+        baseDefaultValues = deepcopy(baseLogicData[12] if len(baseLogicData) > 12 else dict())
+        incDefaultValues = deepcopy(incLogicData[12])
+
+        syncDefaultParams(baseLogicData, incLogicData, baseDefaultValues, incDefaultValues)
+
         # So far "SolutionIndex" in logic yamls has zero impact on actual 1-1 size mapping (but the order of the Solution does)
         # since mergeLogic() takes that value very seriously so we reindex them here so it doesn't choke on duplicated SolutionIndex
         baseLogicData = reindexSolutions(baseLogicData)
         incLogicData = reindexSolutions(incLogicData)
 
         mergedData, *stats = mergeLogic(baseLogicData, incLogicData, forceMerge, trimSize, addSolutionTags)
+
+        # Replace base default solution with newer version
+        if len(mergedData) > 12:
+          mergedData[12] = incData[12]
+        elif len(mergedData) > 11:
+          mergedData.append(incData[12])
+
         msg(stats[0], "size(s) and", stats[1], "kernel(s) added,", stats[2], "kernel(s) removed")
 
         # Use the merged data as the base data for the next partial logic file
