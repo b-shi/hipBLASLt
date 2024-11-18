@@ -127,7 +127,9 @@ class SumUnrollMfma(SumUnroll):
                         printExit("Currently unsupported vgprPerInput %u"%vgprPerInput)
                     writer.vgprPool.checkIn(tmpVgpr)
                 elif (kernel["ProblemType"]["DataType"].isFloat8A() and tc == "A") or \
-                     (kernel["ProblemType"]["DataType"].isFloat8B() and tc == "B") :
+                     (kernel["ProblemType"]["DataType"].isFloat8_fnuzA() and tc == "A") or \
+                     (kernel["ProblemType"]["DataType"].isFloat8B() and tc == "B") or \
+                     (kernel["ProblemType"]["DataType"].isFloat8_fnuzB() and tc == "B") :
                     #FP8
                     tmpVgpr = writer.vgprPool.checkOutAligned(4,2)
                     if vgprPerInput > 1 and (vgprPerInput % 2 == 0):
@@ -144,7 +146,9 @@ class SumUnrollMfma(SumUnroll):
                         printExit("Currently unsupported vgprPerInput %u"%vgprPerInput)
                     writer.vgprPool.checkIn(tmpVgpr)
                 elif (kernel["ProblemType"]["DataType"].isBFloat8A() and tc == "A") or \
-                     (kernel["ProblemType"]["DataType"].isBFloat8B() and tc == "B") :
+                     (kernel["ProblemType"]["DataType"].isBFloat8_fnuzA() and tc == "A") or \
+                     (kernel["ProblemType"]["DataType"].isBFloat8B() and tc == "A") or \
+                     (kernel["ProblemType"]["DataType"].isBFloat8_fnuzB() and tc == "B") :
                     #BF8
                     tmpVgpr = writer.vgprPool.checkOutAligned(4,2)
                     if vgprPerInput > 1 and (vgprPerInput % 2 == 0):

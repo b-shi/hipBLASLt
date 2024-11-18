@@ -394,6 +394,10 @@ validMFMA["F8"] = [[32,32,16,1], [16,16,32,1]]
 validMFMA["B8"] = validMFMA["F8"]
 validMFMA["F8B8"] = validMFMA["F8"]
 validMFMA["B8F8"] = validMFMA["F8"]
+validMFMA["F8N"] = [[32,32,16,1], [16,16,32,1]]
+validMFMA["B8N"] = validMFMA["F8"]
+validMFMA["F8B8N"] = validMFMA["F8"]
+validMFMA["B8F8N"] = validMFMA["F8"]
 validWMMA = [[16,16,16,1], ]
 validTT = 32
 validMFMA["_format9"] = []
@@ -453,7 +457,18 @@ validGEMMTypes = [ ('H','H','H'), ('S','S','S'), ('D','D','D'), ('C','C','C'), (
                    ('F8','F8','S'), ('B8','B8','S'), \
                    ('F8B8','B8','S'), ('B8F8', 'B8', 'S'), \
                    ('F8','B8','S'), ('B8','F8','S'), \
-                   ('F8B8','F8','S'), ('B8F8', 'F8', 'S') ]
+                   ('F8B8','F8','S'), ('B8F8', 'F8', 'S'), \
+                   # F8 NANOO
+                   ('F8N','S','S'), ('B8N','S','S'), \
+                   ('F8B8N','S','S'), ('B8F8N', 'S', 'S'), \
+                   ('F8N','H','S'), ('B8N','H','S'), \
+                   ('F8B8N','H','S'), ('B8F8N','H','S'), ('B8N','B','S'), \
+                   ('H','F8N','S'), ('F8N','B','S'), ('F8B8N','B','S'), ('B8F8N','B','S'), \
+                   # in/out are both R8
+                   ('F8N','F8N','S'), ('B8N','B8N','S'), \
+                   ('F8B8N','B8N','S'), ('B8F8N', 'B8N', 'S'), \
+                   ('F8N','B8N','S'), ('B8N','F8N','S'), \
+                   ('F8B8N','F8N','S'), ('B8F8N', 'F8N', 'S') ]
 
 # All HPA types are listed here (HPA=T). The name of the library logic files for these types is:
 # *_TiToTc_BH*.yaml where Ti, To, and Tc are the data types of A/B, C/D, and computation, respectively.
@@ -465,7 +480,13 @@ HPATypes = [ ('H','S','S'), ('H','H','S'), ('B','B','S'), ('B','S','S'), ('B','H
              ('H','F8','S'), ('F8','B','S'), ('F8B8','B','S'), \
              # in/out are both R8
              ('F8','F8','S'), ('B8','B8','S'), ('F8B8','B8','S'), ('B8F8', 'B8', 'S'), \
-             ('F8','B8','S'), ('B8','F8','S'), ('F8B8','F8','S'), ('B8F8', 'F8', 'S') ]
+             ('F8','B8','S'), ('B8','F8','S'), ('F8B8','F8','S'), ('B8F8', 'F8', 'S'), \
+             ('F8N','S','S'), ('B8N','S','S'), ('F8B8N','S','S'), ('B8F8N', 'S', 'S'), \
+             ('F8N','H','S'), ('B8N','H','S'), ('F8B8N','H','S'), ('B8F8N','H','S'), \
+             ('H','F8N','S'), ('F8N','B','S'), ('F8B8N','B','S'), \
+             # in/out are both R8
+             ('F8N','F8N','S'), ('B8N','B8N','S'), ('F8B8N','B8N','S'), ('B8F8N', 'B8N', 'S'), \
+             ('F8N','B8N','S'), ('B8N','F8N','S'), ('F8B8N','F8N','S'), ('B8F8N', 'F8N', 'S') ]
 
 validParameters = {
     # 0: Global read is along parallel direction in thread level,
