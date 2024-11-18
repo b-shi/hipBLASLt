@@ -73,9 +73,13 @@ namespace TensileLite
         Int8,
         Float8,
         BFloat8,
+        Float8_fnuz,
+        BFloat8_fnuz,
         XFloat32,
         Float8BFloat8,
         BFloat8Float8,
+        Float8BFloat8_fnuz,
+        BFloat8Float8_fnuz,
         Count,
         None = Count
     };
@@ -223,6 +227,16 @@ namespace TensileLite
     };
 
     template <>
+    struct TypeInfo<Float8_fnuz> : public BaseTypeInfo<Float8_fnuz, DataType::Float8_fnuz, 1, false, false>
+    {
+    };
+
+    template <>
+    struct TypeInfo<BFloat8_fnuz> : public BaseTypeInfo<BFloat8_fnuz, DataType::BFloat8_fnuz, 1, false, false>
+    {
+    };
+
+    template <>
     struct TypeInfo<XFloat32> : public BaseTypeInfo<XFloat32, DataType::XFloat32, 1, false, false>
     {
     };
@@ -239,6 +253,18 @@ namespace TensileLite
     {
     };
 
+    template <>
+    struct TypeInfo<Float8BFloat8_fnuz>
+        : public BaseTypeInfo<Float8BFloat8_fnuz, DataType::Float8BFloat8_fnuz, 1, false, false>
+    {
+    };
+
+    template <>
+    struct TypeInfo<BFloat8Float8_fnuz>
+        : public BaseTypeInfo<BFloat8Float8_fnuz, DataType::BFloat8Float8_fnuz, 1, false, false>
+    {
+    };
+
     // Variant for constants
     using ConstantVariant = std::variant<float,
                                          double,
@@ -250,6 +276,8 @@ namespace TensileLite
                                          BFloat16,
                                          Float8,
                                          BFloat8,
+                                         Float8_fnuz,
+                                         BFloat8_fnuz,
                                          int8_t>;
 
     // Convert variants to type T
@@ -258,7 +286,8 @@ namespace TensileLite
                                 || std::is_same<Half, T>::value || std::is_same<int32_t, T>::value
                                 || std::is_same<BFloat16, T>::value
                                 || std::is_same<int8_t, T>::value || std::is_same<Float8, T>::value
-                                || std::is_same<BFloat8, T>::value,
+                                || std::is_same<BFloat8, T>::value
+                                || std::is_same<Float8_fnuz, T>::value || std::is_same<BFloat8_fnuz, T>::value,
                             T>::type
         constVariantCast(const ConstantVariant& val)
     {
@@ -280,6 +309,10 @@ namespace TensileLite
             return static_cast<T>(*std::get_if<Float8>(&val));
         case static_cast<int>(DataType::BFloat8):
             return static_cast<T>(*std::get_if<BFloat8>(&val));
+        case static_cast<int>(DataType::Float8_fnuz):
+            return static_cast<T>(*std::get_if<Float8_fnuz>(&val));
+        case static_cast<int>(DataType::BFloat8_fnuz):
+            return static_cast<T>(*std::get_if<BFloat8_fnuz>(&val));
         default:
             throw std::runtime_error("Unsupported variant cast type.");
         }
