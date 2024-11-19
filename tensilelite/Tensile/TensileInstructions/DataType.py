@@ -414,20 +414,28 @@ class DataType:
         return self.value == DataType.xfloat32
     def isFloat8(self):
         return self.value == DataType.float8
-    def isBFloat8(self):
-        return self.value == DataType.bfloat8
-    def isFloat8BFloat8(self):
-        return self.value == DataType.float8Bfloat8
-    def isBFloat8Float8(self):
-        return self.value == DataType.bfloat8Float8
     def isFloat8_fnuz(self):
         return self.value == DataType.float8_fnuz
+    def isAnyFloat8(self):
+        return self.value == DataType.float8 or self.value == DataType.float8_fnuz
+    def isBFloat8(self):
+        return self.value == DataType.bfloat8
     def isBFloat8_fnuz(self):
         return self.value == DataType.bfloat8_fnuz
+    def isAnyBFloat8(self):
+        return self.value == DataType.bfloat8 or self.value == DataType.bfloat8_fnuz
+    def isFloat8BFloat8(self):
+        return self.value == DataType.float8Bfloat8
     def isFloat8BFloat8_fnuz(self):
         return self.value == DataType.float8Bfloat8_fnuz
+    def isAnyFloat8BFloat8(self):
+        return self.value == DataType.float8Bfloat8 or self.value == DataType.float8Bfloat8_fnuz
+    def isBFloat8Float8(self):
+        return self.value == DataType.bfloat8Float8
     def isBFloat8Float8_fnuz(self):
         return self.value == DataType.bfloat8Float8_fnuz
+    def isAnyBFloat8Float8(self):
+        return self.value == DataType.bfloat8Float8 or self.value == DataType.bfloat8Float8_fnuz
     def is8bitFloat(self):
         return (self.value == DataType.float8 \
                 or self.value == DataType.bfloat8 \
@@ -440,26 +448,46 @@ class DataType:
     def isFloat8A(self):
         return (self.value == DataType.float8 \
                 or self.value == DataType.float8Bfloat8)
-    def isBFloat8A(self):
-        return (self.value == DataType.bfloat8 \
-                or self.value == DataType.bfloat8Float8)
-    def isFloat8B(self):
-        return (self.value == DataType.float8 \
-                or self.value == DataType.bfloat8Float8)
-    def isBFloat8B(self):
-        return (self.value == DataType.bfloat8 \
-                or self.value == DataType.float8Bfloat8)
     def isFloat8_fnuzA(self):
         return (self.value == DataType.float8_fnuz \
                 or self.value == DataType.float8Bfloat8_fnuz)
+    def isAnyFloat8A(self):
+        return (self.value == DataType.float8 \
+                or self.value == DataType.float8Bfloat8 \
+                or self.value == DataType.float8_fnuz \
+                or self.value == DataType.float8Bfloat8_fnuz)
+    def isBFloat8A(self):
+        return (self.value == DataType.bfloat8 \
+                or self.value == DataType.bfloat8Float8)
     def isBFloat8_fnuzA(self):
         return (self.value == DataType.bfloat8_fnuz \
                 or self.value == DataType.bfloat8Float8_fnuz)
+    def isAnyBFloat8A(self):
+        return (self.value == DataType.bfloat8 \
+                or self.value == DataType.bfloat8Float8 \
+                or self.value == DataType.bfloat8_fnuz \
+                or self.value == DataType.bfloat8Float8_fnuz)
+    def isFloat8B(self):
+        return (self.value == DataType.float8 \
+                or self.value == DataType.bfloat8Float8)
     def isFloat8_fnuzB(self):
         return (self.value == DataType.float8_fnuz \
                 or self.value == DataType.bfloat8Float8_fnuz)
+    def isAnyFloat8B(self):
+        return (self.value == DataType.float8 \
+                or self.value == DataType.bfloat8Float8 \
+                or self.value == DataType.float8_fnuz \
+                or self.value == DataType.bfloat8Float8_fnuz)
+    def isBFloat8B(self):
+        return (self.value == DataType.bfloat8 \
+                or self.value == DataType.float8Bfloat8)
     def isBFloat8_fnuzB(self):
         return (self.value == DataType.bfloat8_fnuz \
+                or self.value == DataType.float8Bfloat8_fnuz)
+    def isAnyBFloat8B(self):
+        return (self.value == DataType.bfloat8 \
+                or self.value == DataType.float8Bfloat8 \
+                or self.value == DataType.bfloat8_fnuz \
                 or self.value == DataType.float8Bfloat8_fnuz)
     def isNone(self):
         return self.value == None
