@@ -1098,8 +1098,7 @@ class GlobalWriteBatchWriter:
       module.add(VMovB32(vgpr(self.cvtVgprStruct.vgprFp8NanInf), "0x207", "Nan and +/- inf" ))
       module.add(VMovB32(vgpr(self.cvtVgprStruct.vgprFp8Max), "0x43E00000", "Fp8 Max value 448 as float32" ))
       module.add(VMovB32(vgpr(self.cvtVgprStruct.vgprFp8Min), "0xc3E00000", "Fp8 Min value -448 as float32" ))
-    elif self.kernel["ProblemType"]["DestDataType"].isBFloat8() or self.kernel["ProblemType"]["DestDataType"].isBFloat8_fnuz() \
-    and self.kernel["ProblemType"]["HighPrecisionAccumulate"]:
+    elif self.kernel["ProblemType"]["DestDataType"].isAnyBFloat8() and self.kernel["ProblemType"]["HighPrecisionAccumulate"]:
       module.add(VMovB32(vgpr(self.cvtVgprStruct.vgprBF8NanInf), "0x207", "Nan and +/- inf" ))
       module.add(VMovB32(vgpr(self.cvtVgprStruct.vgprBF8Max), "0x47600000", "BF8 Max value 57344 as float32" ))
       module.add(VMovB32(vgpr(self.cvtVgprStruct.vgprBF8Min), "0xc7600000", "BF8 Min value -57344 as float32" ))
@@ -1398,10 +1397,10 @@ class GlobalWriteBatchWriter:
         elif self.kernel["ProblemType"]["DestDataType"].isBFloat16():
           packModule = self.packdata(self.gwvw, destIdx, self.ss.elementSumIdx[elementIdx], bf16CVTVgprStruct=self.cvtVgprStruct,
                                      tmpS01=self.tmpS01, laneSGPRC=self.laneSGPRC, inputPrefix="ValuC+", prefixOffset=self.parentWriter.states.c.startVgprValu)
-        elif self.kernel["ProblemType"]["DestDataType"].isFloat8() or self.kernel["ProblemType"]["DestDataType"].isFloat8_fnuz():
+        elif self.kernel["ProblemType"]["DestDataType"].isAnyFloat8():
           packModule = self.packdata(self.gwvw, destIdx, self.ss.elementSumIdx[elementIdx], fp8CVTVgprStruct=self.cvtVgprStruct, \
                                      tmpS01=self.tmpS01, laneSGPRC=self.laneSGPRC, inputPrefix="ValuC+", prefixOffset=self.parentWriter.states.c.startVgprValu)
-        elif self.kernel["ProblemType"]["DestDataType"].isBFloat8() or self.kernel["ProblemType"]["DestDataType"].isBFloat8_fnuz():
+        elif self.kernel["ProblemType"]["DestDataType"].isAnyBFloat8():
           packModule = self.packdata(self.gwvw, destIdx, self.ss.elementSumIdx[elementIdx], bf8CVTVgprStruct=self.cvtVgprStruct, \
                                      tmpS01=self.tmpS01, laneSGPRC=self.laneSGPRC, inputPrefix="ValuC+", prefixOffset=self.parentWriter.states.c.startVgprValu)
         elif self.kernel["ProblemType"]["DestDataType"].isInt32():
@@ -2023,7 +2022,7 @@ class GlobalWriteBatchWriter:
         module.add(VFmaF64(dst=vgpr("ValuC+%u"%(newSumIdxV+2),2), src0=vgpr(dataV+2,2), src1=sgpr("Beta+0",2), src2=vgpr("ValuC+%u"%(newSumIdxV+2),2), comment="c.imag += a.imag * b.real"))
 
       # float8 precision
-      elif kernel["ProblemType"]["DestDataType"].isFloat8() or kernel["ProblemType"]["DestDataType"].isFloat8_fnuz():
+      elif kernel["ProblemType"]["DestDataType"].isAnyFloat8():
         if kernel["ProblemType"]["HighPrecisionAccumulate"]:
           newSumIdxV = sumIdxV - self.parentWriter.states.c.startVgprValu
           # Generate single f32 code if edge is detected.
@@ -2059,7 +2058,7 @@ class GlobalWriteBatchWriter:
             if isPK:
               module.add(VMacF32(dst=vgpr("ValuC+%u"%(newSumIdxV+1)), src0=vgpr(tmpVgpr+1), src1=sgpr("Beta"), comment="finalSum = sum*alpha + C*beta (PK)"))
       # bfloat8 precision
-      elif kernel["ProblemType"]["DestDataType"].isBFloat8():
+      elif kernel["ProblemType"]["DestDataType"].isAnyBFloat8():
         if kernel["ProblemType"]["HighPrecisionAccumulate"]:
           newSumIdxV = sumIdxV - self.parentWriter.states.c.startVgprValu
           # Generate single f32 code if edge is detected.

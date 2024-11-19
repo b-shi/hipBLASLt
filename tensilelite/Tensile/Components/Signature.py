@@ -66,13 +66,13 @@ class UserArgumentsInfo:
 
 def getSrcValueType(kernel, isTypeA):
     # special cases for F8 datatypes
-    if kernel["ProblemType"]["DataType"].isFloat8() or kernel["ProblemType"]["DataType"].isFloat8_fnuz():
+    if kernel["ProblemType"]["DataType"].isAnyFloat8():
         srcValueType = "FP8"
-    elif kernel["ProblemType"]["DataType"].isBFloat8() or kernel["ProblemType"]["DataType"].isBFloat8_fnuz():
+    elif kernel["ProblemType"]["DataType"].isAnyBFloat8():
         srcValueType = "BF8"
-    elif kernel["ProblemType"]["DataType"].isFloat8BFloat8() or kernel["ProblemType"]["DataType"].isFloat8BFloat8_fnuz():
+    elif kernel["ProblemType"]["DataType"].isAnyFloat8BFloat8():
         srcValueType = "FP8" if isTypeA else "BF8"
-    elif kernel["ProblemType"]["DataType"].isBFloat8Float8() or kernel["ProblemType"]["DataType"].isBFloat8Float8_fnuz():
+    elif kernel["ProblemType"]["DataType"].isAnyBFloat8Float8():
         srcValueType = "BF8" if isTypeA else "FP8"
     else:
         if isTypeA:
@@ -85,9 +85,9 @@ def getSrcValueType(kernel, isTypeA):
 
 def getDstValueType(kernel):
     # special cases for F8 datatypes
-    if kernel["ProblemType"]["DataType"].isFloat8() or kernel["ProblemType"]["DataType"].isFloat8_fnuz():
+    if kernel["ProblemType"]["DataType"].isAnyFloat8():
         dstValueType = "FP8"
-    elif kernel["ProblemType"]["DataType"].isBFloat8() or kernel["ProblemType"]["DataType"].isBFloat8_fnuz():
+    elif kernel["ProblemType"]["DataType"].isAnyBFloat8():
         dstValueType = "BF8"
     else:
         dstValueType = kernel["ProblemType"]["DataType"].toNameAbbrev().upper()
