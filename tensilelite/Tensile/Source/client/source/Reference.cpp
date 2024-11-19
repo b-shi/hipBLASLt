@@ -1153,7 +1153,7 @@ omp_set_num_threads(MAX_OMP_THREADS);
         }
 
         template <typename Problem, typename Inputs>
-        void SolveCPUTemplates(uint32_t const& contractionInputsTypeId,
+        void SolveCPUTemplates(uint64_t const& contractionInputsTypeId,
                                Problem const&  problem,
                                Inputs const&   inputs,
                                size_t          elementsToValidate)
@@ -1482,14 +1482,14 @@ omp_set_num_threads(MAX_OMP_THREADS);
                 return ReferenceSolution<TypedGemm_F8B8N_B_S, float>::SolveCPU(
                     problem, inputs, elementsToValidate);
             }
-            case TypedGemm_F8B8N_F8_S::TypeId():
+            case TypedGemm_F8B8N_F8N_S::TypeId():
             {
-                return ReferenceSolution<TypedGemm_F8B8N_F8_S, float>::SolveCPU(
+                return ReferenceSolution<TypedGemm_F8B8N_F8N_S, float>::SolveCPU(
                     problem, inputs, elementsToValidate);
             }
-            case TypedGemm_F8B8N_B8_S::TypeId():
+            case TypedGemm_F8B8N_B8N_S::TypeId():
             {
-                return ReferenceSolution<TypedGemm_F8B8N_B8_S, float>::SolveCPU(
+                return ReferenceSolution<TypedGemm_F8B8N_B8N_S, float>::SolveCPU(
                     problem, inputs, elementsToValidate);
             }
             case TypedGemm_B8F8N_S_S::TypeId():
@@ -1507,14 +1507,14 @@ omp_set_num_threads(MAX_OMP_THREADS);
                 return ReferenceSolution<TypedGemm_B8F8N_B_S, float>::SolveCPU(
                     problem, inputs, elementsToValidate);
             }
-            case TypedGemm_B8F8N_F8_S::TypeId():
+            case TypedGemm_B8F8N_F8N_S::TypeId():
             {
-                return ReferenceSolution<TypedGemm_B8F8N_F8_S, float>::SolveCPU(
+                return ReferenceSolution<TypedGemm_B8F8N_F8N_S, float>::SolveCPU(
                     problem, inputs, elementsToValidate);
             }
-            case TypedGemm_B8F8N_B8_S::TypeId():
+            case TypedGemm_B8F8N_B8N_S::TypeId():
             {
-                return ReferenceSolution<TypedGemm_B8F8N_B8_S, float>::SolveCPU(
+                return ReferenceSolution<TypedGemm_B8F8N_B8N_S, float>::SolveCPU(
                     problem, inputs, elementsToValidate);
             }
             case TypedGemm_H_F8B8N_H_S::TypeId():
@@ -1605,9 +1605,9 @@ omp_set_num_threads(MAX_OMP_THREADS);
                 return ReferenceSolution<TypedGemm_H_F8N_H_S, float>::SolveCPU(
                     problem, inputs, elementsToValidate);
             }
-            case TypedGemm_H_B8_H_S::TypeId():
+            case TypedGemm_H_B8N_H_S::TypeId():
             {
-                return ReferenceSolution<TypedGemm_H_B8_H_S, float>::SolveCPU(
+                return ReferenceSolution<TypedGemm_H_B8N_H_S, float>::SolveCPU(
                     problem, inputs, elementsToValidate);
             }
             case TypedGemm_HF8N_H_S_S::TypeId():
