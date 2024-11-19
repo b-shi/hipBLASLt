@@ -39,7 +39,7 @@
 
 #include <hip/hip_fp8.h>
 
-namespace Tensile
+namespace TensileLite
 {
 
     struct tensile_hip_fp8_e4m3: public __hip_fp8_e4m3
@@ -392,7 +392,7 @@ namespace Tensile
     {
         return static_cast<float>(a) >= static_cast<float>(b);
     }
-} // end of namespace Tensile
+} // end of namespace TensileLite
 
 // dummy datatypes! TODO: removes these by redesigning the computeType
 typedef struct Float8BFloat8{ uint8_t data;} Float8BFloat8;
@@ -403,127 +403,127 @@ typedef struct BFloat8Float8_fnuz{ uint8_t data;} BFloat8Float8_fnuz;
 
 namespace std
 {
-    inline bool isinf(const Tensile::Float8& a)
+    inline bool isinf(const TensileLite::Float8& a)
     {
         return false;
     }
-    inline bool isinf(const Tensile::BFloat8& a)
+    inline bool isinf(const TensileLite::BFloat8& a)
     {
         return (static_cast<unsigned char>(a) & 0x7f) == 0x7c;
     }
 
-    inline bool isnan(const Tensile::Float8& a)
+    inline bool isnan(const TensileLite::Float8& a)
     {
         return (static_cast<unsigned char>(a) & 0x7f) == 0x7f;
     }
-    inline bool isnan(const Tensile::BFloat8& a)
+    inline bool isnan(const TensileLite::BFloat8& a)
     {
         return (static_cast<unsigned char>(a) & 0x7f) > 0x7c;
     }
-    inline bool iszero(const Tensile::Float8& a)
+    inline bool iszero(const TensileLite::Float8& a)
     {
         return (static_cast<unsigned char>(a) & 0x7F) == 0x0;
     }
-    inline bool iszero(const Tensile::BFloat8& a)
+    inline bool iszero(const TensileLite::BFloat8& a)
     {
         return (static_cast<unsigned char>(a) & 0x7F) == 0x0;
     }
 
     //TODO: better to & 0x7F
-    inline Tensile::Float8 abs(const Tensile::Float8& a)
+    inline TensileLite::Float8 abs(const TensileLite::Float8& a)
     {
-        return Tensile::Float8(std::abs(float(a)));
+        return TensileLite::Float8(std::abs(float(a)));
     }
-    inline Tensile::BFloat8 abs(const Tensile::BFloat8& a)
+    inline TensileLite::BFloat8 abs(const TensileLite::BFloat8& a)
     {
-        return Tensile::BFloat8(std::abs(float(a)));
-    }
-
-    inline Tensile::Float8 sin(const Tensile::Float8& a)
-    {
-        return Tensile::Float8(std::sin(float(a)));
-    }
-    inline Tensile::BFloat8 sin(const Tensile::BFloat8& a)
-    {
-        return Tensile::BFloat8(std::sin(float(a)));
+        return TensileLite::BFloat8(std::abs(float(a)));
     }
 
-    inline Tensile::Float8 cos(const Tensile::Float8& a)
+    inline TensileLite::Float8 sin(const TensileLite::Float8& a)
     {
-        return Tensile::Float8(std::cos(float(a)));
+        return TensileLite::Float8(std::sin(float(a)));
     }
-    inline Tensile::BFloat8 cos(const Tensile::BFloat8& a)
+    inline TensileLite::BFloat8 sin(const TensileLite::BFloat8& a)
     {
-        return Tensile::BFloat8(std::cos(float(a)));
+        return TensileLite::BFloat8(std::sin(float(a)));
     }
 
-    inline std::string to_string(const Tensile::Float8& a)
+    inline TensileLite::Float8 cos(const TensileLite::Float8& a)
+    {
+        return TensileLite::Float8(std::cos(float(a)));
+    }
+    inline TensileLite::BFloat8 cos(const TensileLite::BFloat8& a)
+    {
+        return TensileLite::BFloat8(std::cos(float(a)));
+    }
+
+    inline std::string to_string(const TensileLite::Float8& a)
     {
         return std::to_string(static_cast<float>(a));
     }
-    inline std::string to_string(const Tensile::BFloat8& a)
+    inline std::string to_string(const TensileLite::BFloat8& a)
     {
         return std::to_string(static_cast<float>(a));
     }
     // FNUZ
-    inline bool isinf(const Tensile::Float8_fnuz& a)
+    inline bool isinf(const TensileLite::Float8_fnuz& a)
     {
         return false;
     }
-    inline bool isinf(const Tensile::BFloat8_fnuz& a)
+    inline bool isinf(const TensileLite::BFloat8_fnuz& a)
     {
         return false;
     }
 
-    inline bool isnan(const Tensile::Float8_fnuz& a)
+    inline bool isnan(const TensileLite::Float8_fnuz& a)
     {
         return static_cast<unsigned char>(a) == 0x80;
     }
-    inline bool isnan(const Tensile::BFloat8_fnuz& a)
+    inline bool isnan(const TensileLite::BFloat8_fnuz& a)
     {
         return static_cast<unsigned char>(a) == 0x80;
     }
-    inline bool iszero(const Tensile::Float8_fnuz& a)
+    inline bool iszero(const TensileLite::Float8_fnuz& a)
     {
         return static_cast<unsigned char>(a) == 0x0;  // NOTE: only +0 exists
     }
-    inline bool iszero(const Tensile::BFloat8_fnuz& a)
+    inline bool iszero(const TensileLite::BFloat8_fnuz& a)
     {
         return static_cast<unsigned char>(a) == 0x0;  // NOTE: only +0 exists
     }
 
-    inline Tensile::Float8_fnuz abs(const Tensile::Float8_fnuz& a)
+    inline TensileLite::Float8_fnuz abs(const TensileLite::Float8_fnuz& a)
     {
-        return Tensile::Float8_fnuz(std::abs(float(a)));
+        return TensileLite::Float8_fnuz(std::abs(float(a)));
     }
-    inline Tensile::BFloat8_fnuz abs(const Tensile::BFloat8_fnuz& a)
+    inline TensileLite::BFloat8_fnuz abs(const TensileLite::BFloat8_fnuz& a)
     {
-        return Tensile::BFloat8_fnuz(std::abs(float(a)));
-    }
-
-    inline Tensile::Float8_fnuz sin(const Tensile::Float8_fnuz& a)
-    {
-        return Tensile::Float8_fnuz(std::sin(float(a)));
-    }
-    inline Tensile::BFloat8_fnuz sin(const Tensile::BFloat8_fnuz& a)
-    {
-        return Tensile::BFloat8_fnuz(std::sin(float(a)));
+        return TensileLite::BFloat8_fnuz(std::abs(float(a)));
     }
 
-    inline Tensile::Float8_fnuz cos(const Tensile::Float8_fnuz& a)
+    inline TensileLite::Float8_fnuz sin(const TensileLite::Float8_fnuz& a)
     {
-        return Tensile::Float8_fnuz(std::cos(float(a)));
+        return TensileLite::Float8_fnuz(std::sin(float(a)));
     }
-    inline Tensile::BFloat8_fnuz cos(const Tensile::BFloat8_fnuz& a)
+    inline TensileLite::BFloat8_fnuz sin(const TensileLite::BFloat8_fnuz& a)
     {
-        return Tensile::BFloat8_fnuz(std::cos(float(a)));
+        return TensileLite::BFloat8_fnuz(std::sin(float(a)));
     }
 
-    inline std::string to_string(const Tensile::Float8_fnuz& a)
+    inline TensileLite::Float8_fnuz cos(const TensileLite::Float8_fnuz& a)
+    {
+        return TensileLite::Float8_fnuz(std::cos(float(a)));
+    }
+    inline TensileLite::BFloat8_fnuz cos(const TensileLite::BFloat8_fnuz& a)
+    {
+        return TensileLite::BFloat8_fnuz(std::cos(float(a)));
+    }
+
+    inline std::string to_string(const TensileLite::Float8_fnuz& a)
     {
         return std::to_string(static_cast<float>(a));
     }
-    inline std::string to_string(const Tensile::BFloat8_fnuz& a)
+    inline std::string to_string(const TensileLite::BFloat8_fnuz& a)
     {
         return std::to_string(static_cast<float>(a));
     }
