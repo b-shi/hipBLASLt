@@ -3091,7 +3091,7 @@ void testing_matmul_with_bias(const Arguments& arg,
 
                         hipLaunchKernelGGL(gpu_ramp, dim3(304), dim3(64), 0, stream);
 
-                        uint64_t iter_buff = 100000;
+                        uint64_t iter_buff = 50000;
                         uint64_t *time_d;
                         hipMalloc((void**)&time_d, 2 * iter_buff * sizeof(uint64_t));
 
@@ -3136,6 +3136,9 @@ void testing_matmul_with_bias(const Arguments& arg,
                         double min, avg = 0, max;
                         int num_iter = 1;
 
+                        double runtime = (double) (atoi(getenv("GPUTIMER")) * 1000);
+                        if (runtime == 0.0) runtime = 10000.0;
+                        
                         hipStreamSynchronize(stream);
 
                         std::vector <int> sub_iter_loop_size;
@@ -3182,15 +3185,15 @@ void testing_matmul_with_bias(const Arguments& arg,
                             if ( (curr > 100.0) || arg.flush || rotating > 0) {
                                 //sub_iter_max = 1;
                                 sub_iter_loop_size = {1};
-                                num_iter = std::max<int>((int)(10000.0 / curr), 1);
+                                num_iter = std::max<int>((int)(runtime / curr), 1);
                             }
                             else if (curr > 20.0){
                                 sub_iter_loop_size = {1, 49};
-                                num_iter = std::max<int>((int)(10000.0 / (curr * 50)), 1);
+                                num_iter = std::max<int>((int)(runtime / (curr * 50)), 1);
                             }
                             else {
                                 sub_iter_loop_size = {1, 49, 100};
-                                num_iter = std::max<int>((int)(10000.0 / (curr * (150))), 1);
+                                num_iter = std::max<int>((int)(runtime / (curr * (150))), 1);
                             }
                           
                             //hipblaslt_cout << "Init time : " << curr << "\n";
