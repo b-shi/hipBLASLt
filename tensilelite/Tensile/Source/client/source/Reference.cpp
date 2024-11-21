@@ -1117,7 +1117,7 @@ omp_set_num_threads(MAX_OMP_THREADS);
             }
         }
 
-        uint32_t getInputContractionInputsTypeId(ContractionProblemGemm const& problem)
+        uint64_t getInputContractionInputsTypeId(ContractionProblemGemm const& problem)
         {
             // retreive alpha/beta type set via setAlpha/BetaType()
             auto alphaType = problem.alphaType();
