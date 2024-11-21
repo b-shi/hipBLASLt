@@ -823,7 +823,7 @@ if __name__ == '__main__':
     ap.add_argument('-o', '--output', type=str, required=True, help='Output path of compiled binary')
     ap.add_argument('-t', type=str, default="S", help='data type')
     ap.add_argument('-d', type=str, default="None", help='dest data type')
-    ap.add_argument('-s', type=str, default="F8", help='scale data type')
+    ap.add_argument('-s', type=str, default="F8N", help='scale data type')
     ap.add_argument('-w', type=int, default=256, help='workitem')
     ap.add_argument('-c', type=int, default=4, help='load conut per iteration')
     ap.add_argument('--toolchain', type=str, default=ToolchainDefaults.CXX_COMPILER, help='Path to ROCm compiler')
