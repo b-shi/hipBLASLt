@@ -99,12 +99,12 @@ def processKernelSource(kernelWriterAssembly, ti, kernel) -> KernelCodeGenResult
 
     return KernelCodeGenResult(err, src, header, asmFilename, objFilename, tuple(kernel["ISA"]), kernel["WavefrontSize"])
 
-
 def removeInvalidSolutionsAndKernels(results, kernels, solutions, errorTolerant, globalParameters):
     removeKernels = []
     removeKernelNames = []
     removeSolutions = []
     removeResults = []
+
 
     for kernIdx, r in Utils.tqdm(enumerate(results)) if globalParameters["PrintLevel"] > 1 else enumerate(results):
         if r.err != 0:
@@ -183,7 +183,7 @@ def writeHelpers(outputPath, kernelHelperObjs, KERNEL_HELPER_FILENAME_CPP, KERNE
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
 def writeSolutionsAndKernels(outputPath, asmToolchain, srcToolchain, solutions, kernels, kernelHelperObjs, \
-    kernelWriterAssembly, errorTolerant=False, compress=True):
+    kernelWriterAssembly, errorTolerant=False, compress=True, fromTensile=False):
   codeObjectFiles = []
 
   # Push working path into build_tmp folder because there may be more than
