@@ -148,7 +148,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
     codeObjectFiles, _= writeSolutionsAndKernels( \
             globalParameters["WorkingPath"], asmToolchain, srcToolchain, \
             solutions, kernels, kernelHelperOjbs, \
-            kernelWriterAssembly, errorTolerant=True )
+            kernelWriterAssembly, errorTolerant=True, fromTensile=True )
     # ^ this is where solutions is mutated
 
     newLibraryDir = ensurePath(os.path.join(globalParameters["WorkingPath"], 'library'))
