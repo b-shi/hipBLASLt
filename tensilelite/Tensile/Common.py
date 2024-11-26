@@ -395,14 +395,14 @@ validMFMA["B8"] = validMFMA["F8"]
 validMFMA["F8B8"] = validMFMA["F8"]
 validMFMA["B8F8"] = validMFMA["F8"]
 validMFMA["F8N"] = [[32,32,16,1], [16,16,32,1]]
-validMFMA["B8N"] = validMFMA["F8"]
-validMFMA["F8B8N"] = validMFMA["F8"]
-validMFMA["B8F8N"] = validMFMA["F8"]
+validMFMA["B8N"] = validMFMA["F8N"]
+validMFMA["F8B8N"] = validMFMA["F8N"]
+validMFMA["B8F8N"] = validMFMA["F8N"]
 validWMMA = [[16,16,16,1], ]
 validTT = 32
 validMFMA["_format9"] = []
 
-for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["D"], validMFMA["X"], validMFMA["F8"], validWMMA]:
+for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["D"], validMFMA["X"], validMFMA["F8N"], validWMMA]:
   for MI in MFMA:
     for bm in range(int(math.log(MI[3],2))+1):
       for tt0 in range(1,validTT+1):
@@ -418,12 +418,12 @@ validSMFMA["H"] = [[32,32,16,1], [16,16,32,1]]
 validSMFMA["B"] = [[32,32,16,1], [16,16,32,1]]
 validSMFMA["4xi8"] = [[32,32,32,1], [16,16,64,1]]
 validSMFMA["I8"] = validSMFMA["4xi8"]
-validSMFMA["F8"] = [[32,32,32,1], [16,16,64,1]]
-validSMFMA["B8"] = validSMFMA["F8"]
-validSMFMA["F8B8"] = validSMFMA["F8"]
-validSMFMA["B8F8"] = validSMFMA["F8"]
+validSMFMA["F8N"] = [[32,32,32,1], [16,16,64,1]]
+validSMFMA["B8N"] = validSMFMA["F8N"]
+validSMFMA["F8B8N"] = validSMFMA["F8N"]
+validSMFMA["B8F8N"] = validSMFMA["F8N"]
 validSMFMA["_format9"] = []
-for SMFMA in [validSMFMA["H"], validSMFMA["B"], validSMFMA["4xi8"], validSMFMA["F8"]]:
+for SMFMA in [validSMFMA["H"], validSMFMA["B"], validSMFMA["4xi8"], validSMFMA["F8N"]]:
   for MI in SMFMA:
     for bm in range(int(math.log(MI[3],2))+1):
       for tt0 in range(1,validTT+1):
