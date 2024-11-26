@@ -23,7 +23,7 @@ BenchmarkProblems:
   -
     - # ProblemType
       OperationType: GEMM
-      DataType: F8
+      DataType: F8N
       DestDataType: B
       ComputeDataType: S
       HighPrecisionAccumulate: True
@@ -81,12 +81,12 @@ BenchmarkProblems:
           - [Enum: none]
 
   ########################################
-  # TN - FP8BF8,B,S with ScaleAB
+  # TN - FP8BF8N,B,S with ScaleAB
   ########################################
   -
     - # ProblemType
       OperationType: GEMM
-      DataType: F8B8
+      DataType: F8B8N
       DestDataType: B
       ComputeDataType: S
       HighPrecisionAccumulate: True
