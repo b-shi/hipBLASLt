@@ -227,7 +227,7 @@ BenchmarkProblems:
   - 
     - # ProblemType
       OperationType: GEMM
-      DataType: F8
+      DataType: F8N
       DestDataType: H
       ComputeDataType: S
       HighPrecisionAccumulate: true
