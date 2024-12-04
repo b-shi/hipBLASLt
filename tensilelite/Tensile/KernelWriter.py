@@ -1261,7 +1261,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
               waitDsRead = SWaitCnt(lgkmcnt=numDsInsts, comment="Wait for dependent lr")
               iterCode.add(waitDsRead)
         else:
-          if kernel["UnrollMajorLDSB"] and not kernel["ProblemType"]["DataTypeB"].isAnyFloat8() and kernel["ConvertAfterDS"]:
+          if kernel["UnrollMajorLDSB"] and not (kernel["ProblemType"]["DataTypeB"].isAnyFloat8() and kernel["ConvertAfterDS"]):
             if iteration == 0 and i == kernel["MIWaveTileA"]:
               # add 1 more waitcnt before using ds read data
               waitCode2 = fastdeepcopy(waitCode)
