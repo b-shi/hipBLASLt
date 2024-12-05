@@ -38,19 +38,19 @@ namespace TensileLite
                                   DataType betaType,
                                   DataType computeInputType)
     {
-        static_assert(BitFieldGenerator::ElementWidth((uint64_t)DataType::Count) * 7
+        static_assert(BitFieldGenerator::ElementWidth((uint32_t)DataType::Count) * 7
                           <= BitFieldGenerator::maxBitFieldWidth,
                       "Max bitfield width exceeded");
 
         return BitFieldGenerator::GenerateBitField(
-            BitFieldGenerator::ElementWidth((uint64_t)DataType::Count),
-            (uint64_t)aType,
-            (uint64_t)bType,
-            (uint64_t)cType,
-            (uint64_t)dType,
-            (uint64_t)alphaType,
-            (uint64_t)betaType,
-            (uint64_t)computeInputType);
+            BitFieldGenerator::ElementWidth((uint32_t)DataType::Count),
+            (uint32_t)aType,
+            (uint32_t)bType,
+            (uint32_t)cType,
+            (uint32_t)dType,
+            (uint32_t)alphaType,
+            (uint32_t)betaType,
+            (uint32_t)computeInputType);
     }
 
     template <typename A            = float,
