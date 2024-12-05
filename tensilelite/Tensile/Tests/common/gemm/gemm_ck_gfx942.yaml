@@ -71,11 +71,11 @@ BenchmarkProblems:
   -
     - # ProblemType
       OperationType: GEMM
-      # DataTypeA: f8
+      # DataTypeA: f8n
       # DataTypeB: h
       UseScaleAB: "Vector"
 
-      DataType: f8
+      DataType: f8n
       DestDataType: b
       ComputeDataType: s
       HighPrecisionAccumulate: True
