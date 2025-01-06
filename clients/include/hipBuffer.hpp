@@ -250,11 +250,9 @@ inline void transform_buf(HipHostBuffer& src, HipHostBuffer& dst)
                  || !(std::is_same<T1, hipblaslt_bf8_fnuz>::value
                       || std::is_same<T1, hipblaslt_f8_fnuz>::value))
     {
-#ifdef ROCM_USE_FLOAT8
         if constexpr(std::is_same<Tc, float>::value
                      || !(std::is_same<T1, hipblaslt_bf8>::value
                           || std::is_same<T1, hipblaslt_f8>::value))
-#endif
             std::transform(static_cast<T1*>(src.buf()),
                            static_cast<T1*>(src.end()),
                            static_cast<Tc*>(dst.buf()),

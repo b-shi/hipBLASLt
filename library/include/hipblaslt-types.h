@@ -32,7 +32,12 @@
 #ifndef _HIPBLASLT_TYPES_H_
 #define _HIPBLASLT_TYPES_H_
 
+#if HIP_VERSION_MAJOR == 6 && HIP_VERSION_MINOR > 2 \
+    && HIP_VERSION_PATCH > 42130 //tmp before gfx94 use hip f8 header
 #include "hipblaslt_float8.h"
+#else
+#include "hipblaslt_float8_bc.h"
+#endif
 #include <float.h>
 
 // Generic API

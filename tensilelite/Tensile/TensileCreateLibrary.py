@@ -178,7 +178,6 @@ def writeHelpers(outputPath, kernelHelperObjs, KERNEL_HELPER_FILENAME_CPP, KERNE
     
         kernelHeaderFile.write(HeaderText)
 
-
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
@@ -309,6 +308,7 @@ def copyStaticFiles(outputPath=None):
     "TensileTypes.h",
     "tensile_bfloat16.h",
     "tensile_float8_bfloat8.h",
+    "tensile_float8_bfloat8_bc.h",
     "KernelHeader.h",
     "ReductionTemplate.h",
     "memory_gfx.h" ]

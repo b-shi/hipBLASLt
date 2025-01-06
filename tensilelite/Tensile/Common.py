@@ -1625,7 +1625,7 @@ def which(p):
                 return candidate
     return None
 
-def splitArchs():
+def splitArchs(fromTensile=False):
   # Helper for architecture
   def isSupported(arch):
     return globalParameters["AsmCaps"][arch]["SupportedISA"] and \
@@ -1657,6 +1657,13 @@ def splitArchs():
     for arch in wantedArchs:
       archs += [re.sub(":", "-", arch)]
       cmdlineArchs += [arch]
+
+  # if calling from the context of Tensile we only want the arch associated with the current ISA
+  if fromTensile:
+    gfx = getGfxName(globalParameters["CurrentISA"])
+    archs = set(a for a in archs if gfx in a)
+    cmdlineArchs = set(a for a in cmdlineArchs if gfx in a)
+
   return archs, cmdlineArchs
 
 ################################################################################
@@ -1708,7 +1715,7 @@ def assignGlobalParameters(config, cxxCompiler=None):
   # ROCm Agent Enumerator Path
   if os.name == "nt":
     globalParameters["AMDGPUArchPath"] = locateExe(globalParameters["ROCmBinPath"], "hipinfo.exe")
-    globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "hipinfo.exe")    
+    globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "hipinfo.exe")
   else:
     globalParameters["AMDGPUArchPath"] = locateExe(globalParameters["ROCmPath"], "llvm/bin/amdgpu-arch")
     globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm_agent_enumerator")

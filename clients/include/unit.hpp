@@ -134,7 +134,6 @@ inline void unit_check_general(int64_t                   M,
     UNIT_CHECK(M, N, lda, 0, hCPU, hGPU, 1, ASSERT_BF8_EQ);
 }
 
-#ifdef ROCM_USE_FLOAT8
 template <>
 inline void unit_check_general(
     int64_t M, int64_t N, int64_t lda, const hipblaslt_f8* hCPU, const hipblaslt_f8* hGPU)
@@ -148,7 +147,6 @@ inline void unit_check_general(
 {
     UNIT_CHECK(M, N, lda, 0, hCPU, hGPU, 1, ASSERT_BF8_EQ);
 }
-#endif
 
 template <>
 inline void unit_check_general(
@@ -244,7 +242,6 @@ inline void unit_check_general(int64_t                   M,
     UNIT_CHECK(M, N, lda, strideA, hCPU, hGPU, batch_count, ASSERT_BF8_EQ);
 }
 
-#ifdef ROCM_USE_FLOAT8
 template <>
 inline void unit_check_general(int64_t                 M,
                                int64_t                 N,
@@ -268,7 +265,6 @@ inline void unit_check_general(int64_t                  M,
 {
     UNIT_CHECK(M, N, lda, strideA, hCPU, hGPU, batch_count, ASSERT_BF8_EQ);
 }
-#endif
 
 template <>
 inline void unit_check_general<hip_bfloat16, float>(int64_t             M,

@@ -69,9 +69,7 @@ bool allclose(size_t* N, T* a, T* b, double atol, double rtol, bool equal_nan = 
 template <
     typename T,
     std::enable_if_t<!(std::is_same<T, hipblaslt_f8_fnuz>{} || std::is_same<T, hipblaslt_bf8_fnuz>{}
-#ifdef ROCM_USE_FLOAT8
                        || std::is_same<T, hipblaslt_f8>{} || std::is_same<T, hipblaslt_bf8>{}
-#endif
                 ),
               int> = 0>
 bool allclose_check_general(char    allclose_type,
@@ -182,7 +180,6 @@ bool allclose_check_general(char    allclose_type,
     return true;
 }
 
-#ifdef ROCM_USE_FLOAT8
 template <
     typename T,
     std::enable_if_t<(std::is_same<T, hipblaslt_f8>{} || std::is_same<T, hipblaslt_bf8>{}),
@@ -238,7 +235,6 @@ bool allclose_check_general(char    allclose_type,
 
     return true;
 }
-#endif
 // For BF16 and half, we convert the results to double first
 template <
     typename T,

@@ -1024,6 +1024,18 @@ void testing_matmul(const Arguments& arg)
     return;
 }
 
+void checkF8DataType__(hipDataType TiA,
+					   hipDataType TiB,
+					   hipDataType To,
+					   hipDataType Tc,
+					   hipDataType TciA,
+					   hipDataType TbiA,
+					   hipDataType Tbias ) // TODO: better name
+{
+
+}
+
+
 void testing_matmul_with_bias(const Arguments& arg,
                               hipDataType      TiA,
                               hipDataType      TiB,

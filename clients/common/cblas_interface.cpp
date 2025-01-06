@@ -152,11 +152,9 @@ void cast_mul(customVector<TcCast>& dst, const TiA* src, size_t size)
                  || (!std::is_same<TiA, hipblaslt_bf8_fnuz>::value
                      && !std::is_same<TiA, hipblaslt_f8_fnuz>::value))
     {
-#ifdef ROCM_USE_FLOAT8
         if constexpr(std::is_same<TcCast, float>::value
                      || !(std::is_same<TiA, hipblaslt_bf8>::value
                           || std::is_same<TiA, hipblaslt_f8>::value))
-#endif
             for(size_t i = 0; i < size; i++)
             {
                 dst[i] = static_cast<TcCast>(src[i]);
@@ -223,12 +221,10 @@ void cast_mul(customVector<TcCast>& dst,
                  || (!std::is_same<TiA, hipblaslt_bf8_fnuz>::value
                      && !std::is_same<TiA, hipblaslt_f8_fnuz>::value))
     {
-#ifdef ROCM_USE_FLOAT8
         if constexpr(std::is_same<TcCast, float>::value
                      || !(std::is_same<TiA, hipblaslt_bf8>::value
                           || std::is_same<TiA, hipblaslt_f8>::value))
         {
-#endif
             if(AlphaVec != nullptr)
             {
                 if(transA)
@@ -271,9 +267,7 @@ void cast_mul(customVector<TcCast>& dst,
                     }
                 }
             }
-#ifdef ROCM_USE_FLOAT8
         }
-#endif
     }
 }
 
@@ -426,14 +420,12 @@ void cast_mul_with_Tci(customVector<TcCast>& dst,
                         && (!std::is_same<TiA, hipblaslt_bf8_fnuz>::value
                             && !std::is_same<TiA, hipblaslt_f8_fnuz>::value))
     {
-#ifdef ROCM_USE_FLOAT8
         if constexpr(std::is_same<TcCast, float>::value
                      || (!std::is_same<TciACast, hipblaslt_bf8>::value
                          && !std::is_same<TciACast, hipblaslt_f8>::value)
                             && (!std::is_same<TiA, hipblaslt_bf8>::value
                                 && !std::is_same<TiA, hipblaslt_f8>::value))
         {
-#endif
             if(AlphaVec != nullptr)
             {
                 if(transA)
@@ -478,9 +470,7 @@ void cast_mul_with_Tci(customVector<TcCast>& dst,
                     }
                 }
             }
-#ifdef ROCM_USE_FLOAT8
         }
-#endif
     }
 }
 

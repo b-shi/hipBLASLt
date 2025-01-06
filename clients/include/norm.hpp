@@ -106,9 +106,7 @@ void m_axpy(size_t* N, T* alpha, T* x, int* incx, T* y, int* incy)
 template <
     typename T,
     std::enable_if_t<!(std::is_same<T, hipblaslt_f8_fnuz>{} || std::is_same<T, hipblaslt_bf8_fnuz>{}
-#ifdef ROCM_USE_FLOAT8
                        || std::is_same<T, hipblaslt_f8>{} || std::is_same<T, hipblaslt_bf8>{}
-#endif
                        ),
                      int>
     = 0>
@@ -187,7 +185,6 @@ double norm_check_general(char norm_type, int64_t M, int64_t N, int64_t lda, T* 
     return error;
 }
 
-#ifdef ROCM_USE_FLOAT8
 template <
     typename T,
     std::enable_if_t<(std::is_same<T, hipblaslt_f8>{} || std::is_same<T, hipblaslt_bf8>{}), int>
@@ -224,7 +221,6 @@ double norm_check_general(char norm_type, int64_t M, int64_t N, int64_t lda, T* 
 
     return error;
 }
-#endif
 
 /* ============== Norm Check for strided_batched case ============= */
 template <typename T, template <typename> class VEC, typename T_hpa>
@@ -546,12 +542,10 @@ bool norm_check(double norm_error)
         return norm_error < 0.125;
     if(std::is_same<T, hipblaslt_bf8_fnuz>{})
         return norm_error < 0.25;
-#ifdef ROCM_USE_FLOAT8
     if(std::is_same<T, hipblaslt_f8>{})
         return norm_error < 0.125;
     if(std::is_same<T, hipblaslt_bf8>{})
         return norm_error < 0.25;
-#endif
     return false;
 }
 
@@ -570,13 +564,13 @@ bool norm_check(double norm_error, hipDataType type)
     case HIP_R_8F_E4M3_FNUZ:
 #ifdef ROCM_USE_FLOAT8
     case HIP_R_8F_E4M3:
-#endif
         return norm_error < 0.125;
+#endif
     case HIP_R_8F_E5M2_FNUZ:
 #ifdef ROCM_USE_FLOAT8
     case HIP_R_8F_E5M2:
-#endif
         return norm_error < 0.25;
+#endif
     case HIP_R_32I:
         return norm_error < 0.0001;
     case HIP_R_8I:
