@@ -148,7 +148,7 @@ public:
         return x.value;
     }
 #ifdef ROCM_USE_FLOAT8 //todo
-    // Single NaN float8...
+    // Positive NaN float8...
     explicit operator hipblaslt_f8()
     {
         union

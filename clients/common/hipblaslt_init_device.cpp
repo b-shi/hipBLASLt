@@ -225,7 +225,7 @@ void hipblaslt_init_device(ABC                      abc,
         hipblaslt_init_device<hipblaslt_bf8_fnuz>(
             abc, init, is_nan, static_cast<hipblaslt_bf8_fnuz*>(A), M, N, lda, stride, batch_count);
         break;
-#ifdef ROCM_USE_FLOAT8
+#if 0		
     case HIP_R_8F_E4M3:
         hipblaslt_init_device<hipblaslt_f8>(
             abc, init, is_nan, static_cast<hipblaslt_f8*>(A), M, N, lda, stride, batch_count);

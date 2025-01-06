@@ -71,32 +71,30 @@ inline __device__ __host__ hip_bfloat16 negate(hip_bfloat16 x)
 template <>
 inline __device__ __host__ hipblaslt_f8_fnuz negate(hipblaslt_f8_fnuz x)
 {
-    x.data ^= 0x80;
+    x.__x ^= 0x80;
     return x;
 }
 
 template <>
 inline __device__ __host__ hipblaslt_bf8_fnuz negate(hipblaslt_bf8_fnuz x)
 {
-    x.data ^= 0x80;
+    x.__x ^= 0x80;
     return x;
 }
 
-#ifdef ROCM_USE_FLOAT8
 template <>
 inline __device__ __host__ hipblaslt_f8 negate(hipblaslt_f8 x)
 {
-    x.data ^= 0x80;
+    x.__x ^= 0x80;
     return x;
 }
 
 template <>
 inline __device__ __host__ hipblaslt_bf8 negate(hipblaslt_bf8 x)
 {
-    x.data ^= 0x80;
+    x.__x ^= 0x80;
     return x;
 }
-#endif
 
 // Helper function to reduce intermediate precision and the output type are the same as the input type.
 template <typename TxDLi, typename TxDLo, typename Ti>
