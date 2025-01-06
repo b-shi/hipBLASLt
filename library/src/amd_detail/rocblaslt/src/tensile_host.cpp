@@ -126,17 +126,6 @@ namespace
         return std::regex_search(gpu_arch.data(), arch_regex);
     }
 
-    inline bool IsOCPSupported()
-    {
-        int             deviceId;
-        hipDeviceProp_t deviceProperties;
-        static_cast<void>(hipGetDevice(&deviceId));
-        static_cast<void>(hipGetDeviceProperties(&deviceProperties, deviceId));
-        if(gpu_arch_match(deviceProperties.gcnArchName, "12\\d{2}"))
-            return true;
-        return false;
-    }
-
     inline TensileLite::ActivationType getTensileActivationType(rocblaslt_epilogue epilogue)
     {
         switch(epilogue)
@@ -212,15 +201,13 @@ namespace
         case HIP_R_16BF:
             return TensileLite::DataType::BFloat16;
         case HIP_R_8F_E4M3_FNUZ:
-            return TensileLite::DataType::Float8;
+            return TensileLite::DataType::Float8_fnuz;
         case HIP_R_8F_E5M2_FNUZ:
-            return TensileLite::DataType::BFloat8;
-#ifdef ROCM_USE_FLOAT8
+            return TensileLite::DataType::BFloat8_fnuz;
         case HIP_R_8F_E4M3:
             return TensileLite::DataType::Float8;
         case HIP_R_8F_E5M2:
             return TensileLite::DataType::BFloat8;
-#endif
         case HIP_R_8I:
             return TensileLite::DataType::Int8;
         case HIP_R_32I:
@@ -243,17 +230,9 @@ namespace
             return HIP_R_64F;
         case TensileLite::DataType::BFloat16:
             return HIP_R_16BF;
-        case TensileLite::DataType::Float8:
-#ifdef ROCM_USE_FLOAT8
-            if(IsOCPSupported())
-                return HIP_R_8F_E4M3;
-#endif
+        case TensileLite::DataType::Float8_fnuz:
             return HIP_R_8F_E4M3_FNUZ;
-        case TensileLite::DataType::BFloat8:
-#ifdef ROCM_USE_FLOAT8
-            if(IsOCPSupported())
-                return HIP_R_8F_E5M2;
-#endif
+        case TensileLite::DataType::BFloat8_fnuz:
             return HIP_R_8F_E5M2_FNUZ;
         case TensileLite::DataType::Int8:
             return HIP_R_8I;
@@ -279,12 +258,10 @@ namespace
         case rocblaslt_compute_f32_fast_bf8_fnuz:
         case rocblaslt_compute_f32_fast_f8bf8_fnuz:
         case rocblaslt_compute_f32_fast_bf8f8_fnuz:
-#ifdef ROCM_USE_FLOAT8
-        case rocblaslt_compute_f32_fast_f8_ocp:
-        case rocblaslt_compute_f32_fast_bf8_ocp:
-        case rocblaslt_compute_f32_fast_f8bf8_ocp:
-        case rocblaslt_compute_f32_fast_bf8f8_ocp:
-#endif
+        case rocblaslt_compute_f32_fast_f8:
+        case rocblaslt_compute_f32_fast_bf8:
+        case rocblaslt_compute_f32_fast_f8bf8:
+        case rocblaslt_compute_f32_fast_bf8f8:
             return TensileLite::DataType::Float;
         case rocblaslt_compute_f64:
             return TensileLite::DataType::Double;
@@ -308,24 +285,31 @@ namespace
         case rocblaslt_compute_f32_fast_bf16:
             return TensileLite::DataType::BFloat16;
         case rocblaslt_compute_f32_fast_f8_fnuz:
-            return TensileLite::DataType::Float8;
+            return TensileLite::DataType::Float8_fnuz;
         case rocblaslt_compute_f32_fast_bf8_fnuz:
-            return TensileLite::DataType::BFloat8;
+            return TensileLite::DataType::BFloat8_fnuz;
         case rocblaslt_compute_f32_fast_f8bf8_fnuz:
-            return TensileLite::DataType::Float8BFloat8;
+            return TensileLite::DataType::Float8BFloat8_fnuz;
         case rocblaslt_compute_f32_fast_bf8f8_fnuz:
-            return TensileLite::DataType::BFloat8Float8;
-#ifdef ROCM_USE_FLOAT8
-        case rocblaslt_compute_f32_fast_f8_ocp:
+            return TensileLite::DataType::BFloat8Float8_fnuz;
+        case rocblaslt_compute_f32_fast_f8:
             return TensileLite::DataType::Float8;
-        case rocblaslt_compute_f32_fast_bf8_ocp:
+        case rocblaslt_compute_f32_fast_bf8:
             return TensileLite::DataType::BFloat8;
-        case rocblaslt_compute_f32_fast_f8bf8_ocp:
+        case rocblaslt_compute_f32_fast_f8bf8:
             return TensileLite::DataType::Float8BFloat8;
-        case rocblaslt_compute_f32_fast_bf8f8_ocp:
+        case rocblaslt_compute_f32_fast_bf8f8:
             return TensileLite::DataType::BFloat8Float8;
-#endif
         default:;
+        }
+
+        if(typeA == TensileLite::DataType::Float8_fnuz && typeB == TensileLite::DataType::BFloat8_fnuz)
+        {
+            return TensileLite::DataType::Float8BFloat8_fnuz;
+        }
+        else if(typeA == TensileLite::DataType::BFloat8_fnuz && typeB == TensileLite::DataType::Float8_fnuz)
+        {
+            return TensileLite::DataType::BFloat8Float8_fnuz;
         }
 
         if(typeA == TensileLite::DataType::Float8 && typeB == TensileLite::DataType::BFloat8)
@@ -336,6 +320,7 @@ namespace
         {
             return TensileLite::DataType::BFloat8Float8;
         }
+
         return TensileLite::DataTypeInfo::Get(typeA).elementSize
                        <= TensileLite::DataTypeInfo::Get(typeB).elementSize
                    ? typeA
@@ -424,9 +409,9 @@ namespace
             return "f32_bf16_r";
         }
         else if(typeComputeInput == TensileLite::DataType::Half
-                && (typeA == TensileLite::DataType::Float8 && typeB == TensileLite::DataType::Half
+                && (typeA == TensileLite::DataType::Float8_fnuz && typeB == TensileLite::DataType::Half
                     || typeA == TensileLite::DataType::Half
-                           && typeB == TensileLite::DataType::Float8))
+                           && typeB == TensileLite::DataType::Float8_fnuz))
         {
             return "f32_f16_r";
         }
@@ -466,9 +451,9 @@ namespace
             return "c_f32_fast_bf16_r";
         }
         else if(typeComputeInput == TensileLite::DataType::Half
-                && (typeA == TensileLite::DataType::Float8 && typeB == TensileLite::DataType::Half
+                && (typeA == TensileLite::DataType::Float8_fnuz && typeB == TensileLite::DataType::Half
                     || typeA == TensileLite::DataType::Half
-                           && typeB == TensileLite::DataType::Float8))
+                           && typeB == TensileLite::DataType::Float8_fnuz))
         {
             return "c_f32_fast_f16_r";
         }

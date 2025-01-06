@@ -124,7 +124,6 @@ Tout cast_from_type(void* in, hipDataType type, size_t index)
         if constexpr(std::is_same<Tout, float>::value)
             return static_cast<Tout>((static_cast<hipblaslt_bf8_fnuz*>(in))[index]);
         return 0;
-#ifdef ROCM_USE_FLOAT8
     case HIP_R_8F_E4M3:
         if constexpr(std::is_same<Tout, float>::value)
             return static_cast<Tout>((static_cast<hipblaslt_f8*>(in))[index]);
@@ -133,7 +132,6 @@ Tout cast_from_type(void* in, hipDataType type, size_t index)
         if constexpr(std::is_same<Tout, float>::value)
             return static_cast<Tout>((static_cast<hipblaslt_bf8*>(in))[index]);
         return 0;
-#endif
     case HIP_R_32I:
         return static_cast<Tout>((static_cast<int32_t*>(in))[index]);
     case HIP_R_8I:
@@ -167,14 +165,12 @@ void saturate_cast_to_type(void* dst, Tin src, hipDataType typeD, size_t indexD)
     case HIP_R_8F_E5M2_FNUZ:
         static_cast<hipblaslt_bf8_fnuz*>(dst)[indexD] = saturate_cast<hipblaslt_bf8_fnuz>(src);
         return;
-#ifdef ROCM_USE_FLOAT8
     case HIP_R_8F_E4M3:
         static_cast<hipblaslt_f8*>(dst)[indexD] = saturate_cast<hipblaslt_f8>(src);
         return;
     case HIP_R_8F_E5M2:
         static_cast<hipblaslt_bf8*>(dst)[indexD] = saturate_cast<hipblaslt_bf8>(src);
         return;
-#endif
     case HIP_R_32I:
         static_cast<int32_t*>(dst)[indexD] = saturate_cast<int32_t>(src);
         return;
@@ -868,7 +864,6 @@ hipDataType derive_unset_bias_type(const Arguments& arg)
             else //more default cases once support C != D
                 real_bias_type = HIP_R_16F;
         }
-#ifdef ROCM_USE_FLOAT8
         else if((arg.a_type == HIP_R_8F_E4M3 || arg.a_type == HIP_R_8F_E5M2)
                 && (arg.b_type == HIP_R_8F_E4M3 || arg.b_type == HIP_R_8F_E5M2))
         {
@@ -879,7 +874,6 @@ hipDataType derive_unset_bias_type(const Arguments& arg)
             else //more default cases once support C != D
                 real_bias_type = HIP_R_16F;
         }
-#endif
         else
         {
             real_bias_type = arg.d_type;
@@ -900,10 +894,8 @@ std::tuple<hipDataType, hipDataType> derive_unset_compute_input_type(const Argum
         HIP_R_32F,
         HIP_R_16BF,
         HIP_R_16F,
-#ifdef ROCM_USE_FLOAT8
         HIP_R_8F_E4M3,
         HIP_R_8F_E5M2,
-#endif
         HIP_R_8F_E4M3_FNUZ,
         HIP_R_8F_E5M2_FNUZ,
     };

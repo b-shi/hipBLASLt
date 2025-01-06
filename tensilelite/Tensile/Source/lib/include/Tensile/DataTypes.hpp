@@ -37,7 +37,12 @@
 #include <Tensile/Comparison.hpp>
 
 #include <Tensile/DataTypes_BFloat16.hpp>
+#if HIP_VERSION_MAJOR == 6 && HIP_VERSION_MINOR > 2 \
+    && HIP_VERSION_PATCH > 42130 //tmp before gfx94 use hip f8 header
 #include <Tensile/DataTypes_Float8_BFloat8.hpp>
+#else
+#include <Tensile/DataTypes_Float8_BFloat8_bc.hpp>
+#endif
 #include <Tensile/DataTypes_Half.hpp>
 #include <Tensile/DataTypes_Int8.hpp>
 #include <Tensile/DataTypes_Int8x4.hpp>

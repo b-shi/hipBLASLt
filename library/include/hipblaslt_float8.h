@@ -56,8 +56,6 @@ typedef struct
 #define HIP_HOST __host__
 #define HIP_DEVICE __device__
 
-//#include "hipblaslt_hip_f8_impl.h"
-
 #if defined(__HIPCC__)
 #include <hip/hip_fp8.h>
 #endif
