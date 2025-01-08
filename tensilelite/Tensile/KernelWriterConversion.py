@@ -49,6 +49,18 @@ class KernelWriterConversion(KernelWriterBase):
     # setup load vector width
     self.num_elements_load = load_vw
 
+    # Macro guards for f8 types
+    # For now, it is enough to check dest type to determine if we are using f8 types
+    # May need to include checks for input data type in the future.
+    self.f8MacroGuardStart = "";
+    self.f8MacroGuardEnd   = "";
+    if self.state["ProblemType"]["DestDataType"].isFloat8() or self.state["ProblemType"]["DestDataType"].isBFloat8():
+      self.f8MacroGuardStart = "\n#if HIP_FP8_TYPE_OCP\n";
+      self.f8MacroGuardEnd   = "\n#endif // F8 macro guard\n"
+    if self.state["ProblemType"]["DestDataType"].isFloat8_fnuz() or self.state["ProblemType"]["DestDataType"].isBFloat8_fnuz():
+      self.f8MacroGuardStart = "\n#if HIP_FP8_TYPE_FNUZ\n";
+      self.f8MacroGuardEnd   = "\n#endif // F8 macro guard\n"
+
     # derive parameter
     self.language = "HIP"
     self.kernelName = self.getKernelName()
@@ -859,9 +871,11 @@ class KernelWriterConversion(KernelWriterBase):
         self.state["GlobalSplitU"] = gsu
         self.state["ProblemType"]["GroupedGemm"] = toggle
         self.kernelName = self.getKernelName()
+        fileString += self.f8MacroGuardStart
         fileString += self.functionArgument()
         fileString += self.functionSignature()
         fileString += ";\n"
+        fileString += self.f8MacroGuardEnd
       if not self.state["UnrollOnly"]:
         self.state["UnrollOnly"] = True
     self.state["GlobalSplitU"] = backupGSU
@@ -884,9 +898,10 @@ class KernelWriterConversion(KernelWriterBase):
       for toggle in [True, False]:
         self.state["GlobalSplitU"] = gsu
         self.state["ProblemType"]["GroupedGemm"] = toggle
-        self.kernelName = self.getKernelName()
+        fileString += self.f8MacroGuardStart
         fileString += self.functionSignature()
         fileString += self.kernelBody()
+        fileString += self.f8MacroGuardEnd
       if not self.state["UnrollOnly"]:
         self.state["UnrollOnly"] = True
     self.state["GlobalSplitU"] = backupGSU
