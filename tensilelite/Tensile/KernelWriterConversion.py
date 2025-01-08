@@ -898,6 +898,7 @@ class KernelWriterConversion(KernelWriterBase):
       for toggle in [True, False]:
         self.state["GlobalSplitU"] = gsu
         self.state["ProblemType"]["GroupedGemm"] = toggle
+        self.kernelName = self.getKernelName()
         fileString += self.f8MacroGuardStart
         fileString += self.functionSignature()
         fileString += self.kernelBody()
