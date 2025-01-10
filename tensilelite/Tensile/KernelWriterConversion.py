@@ -54,11 +54,11 @@ class KernelWriterConversion(KernelWriterBase):
     # May need to include checks for input data type in the future.
     self.f8MacroGuardStart = "";
     self.f8MacroGuardEnd   = "";
-    if self.state["ProblemType"]["DestDataType"].isFloat8() or self.state["ProblemType"]["DestDataType"].isBFloat8():
-      self.f8MacroGuardStart = "\n#if HIP_FP8_TYPE_OCP\n";
+    if (self.state["ProblemType"]["DestDataType"].isFloat8() or self.state["ProblemType"]["DestDataType"].isBFloat8()):
+      self.f8MacroGuardStart = "\n#if HIP_FP8_TYPE_OCP\n"
       self.f8MacroGuardEnd   = "\n#endif // F8 macro guard\n"
-    if self.state["ProblemType"]["DestDataType"].isFloat8_fnuz() or self.state["ProblemType"]["DestDataType"].isBFloat8_fnuz():
-      self.f8MacroGuardStart = "\n#if HIP_FP8_TYPE_FNUZ\n";
+    if (self.state["ProblemType"]["DestDataType"].isFloat8_fnuz() or self.state["ProblemType"]["DestDataType"].isBFloat8_fnuz()):
+      self.f8MacroGuardStart = "\n#if HIP_FP8_TYPE_FNUZ\n"
       self.f8MacroGuardEnd   = "\n#endif // F8 macro guard\n"
 
     # derive parameter
