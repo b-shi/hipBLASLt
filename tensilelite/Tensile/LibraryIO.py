@@ -275,6 +275,51 @@ def parseLibraryLogicData(data, srcFile, cxxCompiler, archs=None):
 
     # unpack solution
     def solutionStateToSolution(solutionState, cxxCompiler) -> Solution:
+
+        if data["ArchitectureName"] == "gfx942":
+            patterns = {
+                "F8HS" : "F8NHS",
+                "B8HS" : "B8NHS",
+                "F8SS" : "F8NSS",
+                "B8SS" : "B8NSS",
+                "F8B8SS" : "F8B8NSS",
+                "B8F8SS" : "B8F8NSS",
+                "F8B8HS" : "F8B8NHS",
+                "B8F8HS" : "B8F8NHS",
+                "F8B8F8S" : "F8B8NF8NS",
+                "B8F8F8S" : "B8F8NF8NS",
+                "F8B8B8S" : "F8B8NB8NS",
+                "B8F8B8S" : "B8F8NB8NS",
+                "HF8" : "HF8N",
+                "F8H_" : "F8NH_",
+                "F8B8BS" : "F8B8NBS",
+                "B8F8BS" : "B8F8NBS",
+                "_F8B8S_" : "_F8NB8NS_",
+                "_B8F8S_" : "_B8NF8NS_",
+                "F8BS" : "F8NBS",
+                "B8BS" : "B8NBS",
+                "F8F8S" : "F8NF8NS",
+                "F8B8S" : "F8NB8NS",
+                "B8F8S" : "B8NF8NS",
+                "B8B8S" : "B8NB8NS"
+            }
+            for o,n in patterns.items():
+                if "KernelNameMin" in solutionState.keys():
+                    orig = solutionState["KernelNameMin"]
+                    if o in orig and n not in orig:
+                        orig = orig.replace(o, n)
+                    solutionState["KernelNameMin"] = orig
+                if "SolutionNameMin" in solutionState.keys():
+                    orig = solutionState["SolutionNameMin"]
+                    if o in orig and n not in orig:
+                        orig = orig.replace(o, n)
+                    solutionState["SolutionNameMin"] = orig
+                if "CustomKernelName" in solutionState.keys():
+                    orig = solutionState["CustomKernelName"]
+                    if o in orig and n not in orig:
+                        orig = orig.replace(o, n)
+                    solutionState["CustomKernelName"] = orig
+
         if solutionState["KernelLanguage"] == "Assembly":
             solutionState["ISA"] = Common.gfxArch(data["ArchitectureName"])
         else:
@@ -293,6 +338,8 @@ def parseLibraryLogicData(data, srcFile, cxxCompiler, archs=None):
             # The ActivationType setting in YAML is meaningless in customKernel case.
             # Therefore, we override the customKernel setting with the ActivationType value from ProblemType to avoid false alarms during subsequent problemType checks.
             solutionState["ProblemType"]["ActivationType"] = problemType["ActivationType"]
+
+
         solutionObject = Solution(solutionState, cxxCompiler)
         solutionProblemType = solutionObject["ProblemType"]
         if problemType != solutionProblemType:
