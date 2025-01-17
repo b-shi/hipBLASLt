@@ -28,7 +28,8 @@
 #define TENSILETYPES_H
 #include "tensile_bfloat16.h"
 
-#if HIP_VERSION_MAJOR >= 6 && HIP_VERSION_MINOR >= 3
+#if HIP_VERSION_MAJOR == 6 && HIP_VERSION_MINOR > 2 \
+    && HIP_VERSION_PATCH > 42130 //tmp before gfx94 use hip f8 header
 #include "tensile_float8_bfloat8.h"
 #else
 #include "tensile_float8_bfloat8_bc.h"

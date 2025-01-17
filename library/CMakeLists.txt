@@ -51,7 +51,6 @@ set(hipblaslt_headers_public
   include/hipblaslt_xfloat32.h
   include/hipblaslt_float8.h
   include/hipblaslt_float8_bc.h
-  include/hipblaslt_hip_f8_impl.h
   include/hipblaslt-ext-op.h
   ${PROJECT_BINARY_DIR}/include/hipblaslt/hipblaslt-version.h
 )

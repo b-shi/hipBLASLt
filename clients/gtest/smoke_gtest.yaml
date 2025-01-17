@@ -204,7 +204,7 @@ Tests:
   beta: [ 0.0, 2.0 ]
   gpu_arch: '120[0-1]'
 
-- name: matmul_real_1b_dst_f8_fnuz_SCDInt1_smoke
+- name: matmul_real_1b_fnuz_dst_f8_fnuz_SCDInt1_smoke
   category: smoke
   function:
     matmul: *real_precisions_1b_fnuz_dst_f8_fnuz
