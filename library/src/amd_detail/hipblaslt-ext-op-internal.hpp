@@ -590,7 +590,7 @@ private:
     std::uint32_t     length{};
     TensileLite::DataType datatype{TensileLite::DataType::Float};
     TensileLite::DataType outDatatype{TensileLite::DataType::Float};
-    TensileLite::DataType scaleDatatype{TensileLite::DataType::Float8};
+    TensileLite::DataType scaleDatatype{TensileLite::DataType::Float8_fnuz};
     bool              isScale = false;
 };
 
