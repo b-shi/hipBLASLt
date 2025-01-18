@@ -203,13 +203,13 @@ struct HIPBLASLT_EXPORT hipblaslt_bf8_fnuz: public __hip_fp8_e5m2_fnuz
     // check for nan
     inline HIP_HOST_DEVICE bool is_nan() const
     {
-        return (__x == 0x7F || __x == 0xFF);
+        return __x == 0x80;
     }
 
     // check for inf: no inf, so checking nan?
     inline HIP_HOST_DEVICE bool is_inf() const
     {
-        return (__x == 0x7F || __x == 0xFF);
+        return __x == 0x80;
     }
 
     // assignment overloading only from the same F8 types

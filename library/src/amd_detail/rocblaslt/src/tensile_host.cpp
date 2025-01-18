@@ -2757,6 +2757,38 @@ rocblaslt_status getBestSolutions(RocblasltContractionProblem const& prob,
     return rocblaslt_status_success;
 }
 
+void checkF8Compatiblity(const std::string &deviceString, const TensileLite::ContractionProblemGemm& prob) {
+
+    bool isGFX94X = deviceString.find("gfx940") != std::string::npos ||
+        deviceString.find("gfx941") != std::string::npos ||
+        deviceString.find("gfx942") != std::string::npos;
+
+    auto isFNUZ = [](TensileLite::DataType type) {
+        return type == TensileLite::DataType::Float8_fnuz ||
+            type == TensileLite::DataType::BFloat8_fnuz;
+    };
+
+    auto isOCP = [](TensileLite::DataType type) {
+        return type == TensileLite::DataType::Float8 ||
+            type == TensileLite::DataType::BFloat8;
+    };
+
+    bool hasFNUZ = isFNUZ(prob.a().dataType()) ||
+        isFNUZ(prob.b().dataType()) ||
+        isFNUZ(prob.c().dataType()) ||
+        isFNUZ(prob.d().dataType());
+
+    bool hasOCP = isOCP(prob.a().dataType()) ||
+        isOCP(prob.b().dataType()) ||
+        isOCP(prob.c().dataType()) ||
+        isOCP(prob.d().dataType());
+
+    if((hasFNUZ && !isGFX94X) || (hasOCP && isGFX94X) || (hasFNUZ && hasOCP)) {
+        log_error(__func__, "Requested F8 type not supported");
+        throw std::runtime_error("[checkF8] Requested F8 type not supported.");
+    }
+}
+
 template <typename MyProblem>
 rocblaslt_status getAllSolutions(MyProblem&                                      prob,
                                  rocblaslt_handle                                handle,
@@ -2776,6 +2808,9 @@ rocblaslt_status getAllSolutions(MyProblem&                                     
         return rocblaslt_status_invalid_pointer;
     }
 
+    std::string deviceFullString(deviceProp->gcnArchName);
+    std::string deviceString = deviceFullString.substr(0, deviceFullString.find(":"));
+
     hardware = TensileLite::hip::GetDevice(*deviceProp);
 
     std::set<std::shared_ptr<TensileLite::ContractionSolution>> solutions;
@@ -2783,11 +2818,16 @@ rocblaslt_status getAllSolutions(MyProblem&                                     
 
     if constexpr(std::is_same<MyProblem, TensileLite::ContractionProblemGemm>::value)
     {
+        checkF8Compatiblity(deviceString, prob);
+
         solutions = library->findAllSolutions(
             prob, *hardware, TensileLite::SolutionLibrarySearchType::GEMM_TYPE_ONLY);
     }
     else if constexpr(std::is_same<MyProblem, TensileLite::ContractionProblemGroupedGemm>::value)
     {
+        for (const auto &gemm : prob.gemms)
+            checkF8Compatiblity(deviceString, gemm);
+
         solutions = library->findAllSolutionsGroupedGemm(
             prob.gemms, *hardware, TensileLite::SolutionLibrarySearchType::GEMM_TYPE_ONLY);
     }
@@ -2870,7 +2910,6 @@ rocblaslt_status getAllSolutions(std::shared_ptr<void>                          
                                  std::vector<rocblaslt_matmul_heuristic_result>& heuristicResults,
                                  size_t                                          maxWorkSpaceBytes)
 {
-
     rocblaslt_status status = rocblaslt_status_success;
     if(gemmType == rocblaslt::RocGemmType::ROCBLASLT_GEMM)
     {
