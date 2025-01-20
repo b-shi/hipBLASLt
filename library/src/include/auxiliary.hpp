@@ -132,10 +132,12 @@ constexpr const char* hip_datatype_to_string(hipDataType type)
         return "f8_fnuz_r";
     case HIP_R_8F_E5M2_FNUZ:
         return "bf8_fnuz_r";
+#ifdef ROCM_USE_FLOAT8
     case HIP_R_8F_E4M3:
         return "f8_r";
     case HIP_R_8F_E5M2:
         return "bf8_r";
+#endif
     default:
         return "non-supported type";
     }
@@ -181,6 +183,7 @@ constexpr hipDataType string_to_hip_datatype(const std::string& value)
         return HIP_R_8F_E5M2_FNUZ;
     }
 
+#ifdef ROCM_USE_FLOAT8
     if (value == "f8_r")
     {
         return HIP_R_8F_E4M3;
@@ -189,6 +192,7 @@ constexpr hipDataType string_to_hip_datatype(const std::string& value)
     {
         return HIP_R_8F_E5M2;
     }
+#endif
 
     return
         value == "f32_r" || value == "s" ? HIP_R_32F  :

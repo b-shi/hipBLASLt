@@ -435,6 +435,7 @@ bool allclose_check_general(char        allclose_type,
                                                           batch_count,
                                                           hipblaslt_atol,
                                                           hipblaslt_rtol);
+#ifdef ROCM_USE_FLOAT8
     case HIP_R_8F_E4M3:
         return allclose_check_general<hipblaslt_f8>(allclose_type,
                                                         M,
@@ -457,6 +458,7 @@ bool allclose_check_general(char        allclose_type,
                                                          batch_count,
                                                          hipblaslt_atol,
                                                          hipblaslt_rtol);
+#endif
     case HIP_R_32I:
         return allclose_check_general<int32_t>(allclose_type,
                                                M,

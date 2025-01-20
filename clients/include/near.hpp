@@ -546,6 +546,7 @@ inline void near_check_general(int64_t     M,
                            batch_count,
                            abs_error);
         break;
+#ifdef ROCM_USE_FLOAT8
     case HIP_R_8F_E4M3:
         near_check_general(M,
                            N,
@@ -566,6 +567,7 @@ inline void near_check_general(int64_t     M,
                            batch_count,
                            abs_error);
         break;
+#endif
     case HIP_R_32I:
         near_check_general(M,
                            N,

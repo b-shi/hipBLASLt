@@ -60,6 +60,8 @@ typedef struct
 #include <hip/hip_fp8.h>
 #endif
 
+#define ROCM_USE_FLOAT8
+
 // NANOO E4M3
 struct HIPBLASLT_EXPORT hipblaslt_f8_fnuz: public __hip_fp8_e4m3_fnuz
 {

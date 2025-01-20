@@ -41,6 +41,8 @@ constexpr bool downcast_clip_on = false;
 
 // TODO: comment about ocp not used, just filler, will replace with hip fp8 header
 
+// TODO: remove this header when switching to rocm 7.0
+
 #if !defined(HIP_FP8_TYPE_FNUZ) 
 #define HIP_FP8_TYPE_FNUZ 1
 #endif
@@ -728,6 +730,8 @@ struct Float8_BFloat8
 typedef Float8_BFloat8<hip_f8_type::fp8_fnuz> tensile_float8_fnuz;
 typedef Float8_BFloat8<hip_f8_type::bf8_fnuz> tensile_bfloat8_fnuz;
 
+// Dummy data type for ocp (added for backward compatible header), will not be used
+// Actual OCP data type will be used from new header.
 typedef Float8_BFloat8<hip_f8_type::fp8> tensile_float8;
 typedef Float8_BFloat8<hip_f8_type::bf8> tensile_bfloat8;
 

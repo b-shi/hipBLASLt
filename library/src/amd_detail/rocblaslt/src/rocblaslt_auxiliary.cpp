@@ -845,6 +845,7 @@ rocblaslt_compute_type _matmul_desc_determine_compute_type(rocblaslt_matmul_desc
             return rocblaslt_compute_f32_fast_f8bf8_fnuz;
         else if(tciA == HIP_R_8F_E5M2_FNUZ && tciB == HIP_R_8F_E4M3_FNUZ)
             return rocblaslt_compute_f32_fast_bf8f8_fnuz;
+#ifdef ROCM_USE_FLOAT8
         else if(tciA == tciB && tciA == HIP_R_8F_E4M3)
             return rocblaslt_compute_f32_fast_f8;
         else if(tciA == tciB && tciA == HIP_R_8F_E5M2)
@@ -853,6 +854,7 @@ rocblaslt_compute_type _matmul_desc_determine_compute_type(rocblaslt_matmul_desc
             return rocblaslt_compute_f32_fast_f8bf8;
         else if(tciA == HIP_R_8F_E5M2 && tciB == HIP_R_8F_E4M3)
             return rocblaslt_compute_f32_fast_bf8f8;
+#endif
     }
     return matmulDesc->compute_type_original;
 }

@@ -204,10 +204,12 @@ namespace
             return TensileLite::DataType::Float8_fnuz;
         case HIP_R_8F_E5M2_FNUZ:
             return TensileLite::DataType::BFloat8_fnuz;
+#ifdef ROCM_USE_FLOAT8
         case HIP_R_8F_E4M3:
             return TensileLite::DataType::Float8;
         case HIP_R_8F_E5M2:
             return TensileLite::DataType::BFloat8;
+#endif
         case HIP_R_8I:
             return TensileLite::DataType::Int8;
         case HIP_R_32I:
@@ -234,6 +236,12 @@ namespace
             return HIP_R_8F_E4M3_FNUZ;
         case TensileLite::DataType::BFloat8_fnuz:
             return HIP_R_8F_E5M2_FNUZ;
+#ifdef ROCM_USE_FLOAT8
+        case TensileLite::DataType::Float8:
+            return HIP_R_8F_E4M3;
+        case TensileLite::DataType::BFloat8:
+            return HIP_R_8F_E5M2;
+#endif
         case TensileLite::DataType::Int8:
             return HIP_R_8I;
         case TensileLite::DataType::Int32:

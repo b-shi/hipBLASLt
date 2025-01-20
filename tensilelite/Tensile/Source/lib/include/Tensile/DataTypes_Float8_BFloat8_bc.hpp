@@ -37,7 +37,7 @@
 #define HIP_HOST __host__
 #define HIP_DEVICE __device__
 
-#if !defined(HIP_FP8_TYPE_FNUZ) 
+#if !defined(HIP_FP8_TYPE_FNUZ)
 #define HIP_FP8_TYPE_FNUZ 1
 #endif
 
@@ -412,12 +412,12 @@ namespace TensileLite
     {
         bf8_fnuz    = 0, // 1:5:2
         fp8_fnuz    = 1, // 1:4:3
-        fp8bf8_fnuz = 2, // Only use for computeInputType
-        bf8fp8_fnuz = 3, // Only use for computeInputType
+        //fp8bf8_fnuz = 2, // Only use for computeInputType
+        //bf8fp8_fnuz = 3, // Only use for computeInputType
 		bf8         = 4, // Placeholder, should not be used
         fp8         = 5, // Placeholder, should not be used
-        fp8bf8      = 6, // Placeholder, should not be used
-        bf8fp8      = 7, // Placeholder, should not be used
+        //fp8bf8      = 6, // Placeholder, should not be used
+        //bf8fp8      = 7, // Placeholder, should not be used
     };
 
     enum class hip_f8_rounding_mode
@@ -890,17 +890,18 @@ namespace TensileLite
         }
     };
 
-    // TODO: place it in appropriate header
+
     typedef Float8_BFloat8<hip_f8_type::fp8_fnuz>    Float8_fnuz;
     typedef Float8_BFloat8<hip_f8_type::bf8_fnuz>    BFloat8_fnuz;
-    typedef Float8_BFloat8<hip_f8_type::fp8bf8_fnuz> Float8BFloat8_fnuz;
-    typedef Float8_BFloat8<hip_f8_type::bf8fp8_fnuz> BFloat8Float8_fnuz;
-
     typedef Float8_BFloat8<hip_f8_type::fp8>    Float8;
     typedef Float8_BFloat8<hip_f8_type::bf8>    BFloat8;
-    typedef Float8_BFloat8<hip_f8_type::fp8bf8> Float8BFloat8;
-    typedef Float8_BFloat8<hip_f8_type::bf8fp8> BFloat8Float8;
-	
+
+	// Dummy data type just to differentiate hybrid case, no conversion is used.
+	typedef struct Float8BFloat8_fnuz{ uint8_t data;} Float8BFloat8_fnuz;
+	typedef struct BFloat8Float8_fnuz{ uint8_t data;} BFloat8Float8_fnuz;
+	typedef struct Float8BFloat8{ uint8_t data;} Float8BFloat8;
+	typedef struct BFloat8Float8{ uint8_t data;} BFloat8Float8;
+
     //  Other operator overloading
 	inline std::ostream& operator<<(std::ostream& os, const Float8& f8)
     {
@@ -1029,7 +1030,7 @@ namespace TensileLite
     }
 
 
-	
+
     inline std::ostream& operator<<(std::ostream& os, const Float8_fnuz& f8)
     {
         os << static_cast<float>(f8);
@@ -1040,7 +1041,7 @@ namespace TensileLite
         os << static_cast<float>(bf8);
         return os;
     }
-	
+
     inline Float8_fnuz operator+(Float8_fnuz a, Float8_fnuz b)
     {
         return static_cast<Float8_fnuz>(static_cast<float>(a) + static_cast<float>(b));

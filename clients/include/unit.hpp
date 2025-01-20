@@ -613,6 +613,7 @@ inline void unit_check_general(int64_t     M,
                            static_cast<hipblaslt_bf8_fnuz*>(hGPU),
                            batch_count);
         break;
+#ifdef ROCM_USE_FLOAT8
     case HIP_R_8F_E4M3:
         unit_check_general(M,
                            N,
@@ -631,6 +632,7 @@ inline void unit_check_general(int64_t     M,
                            static_cast<hipblaslt_bf8*>(hGPU),
                            batch_count);
         break;
+#endif
     case HIP_R_32I:
         unit_check_general(M,
                            N,

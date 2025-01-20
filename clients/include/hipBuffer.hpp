@@ -223,12 +223,14 @@ inline void copy_buf(HipHostBuffer& src, HipHostBuffer& dst, hipDataType type)
     case HIP_R_8F_E5M2_FNUZ:
         copy_buf<hipblaslt_bf8_fnuz>(src, dst);
         break;
+#ifdef ROCM_USE_FLOAT8
     case HIP_R_8F_E4M3:
         copy_buf<hipblaslt_f8>(src, dst);
         break;
     case HIP_R_8F_E5M2:
         copy_buf<hipblaslt_bf8>(src, dst);
         break;
+#endif
     case HIP_R_32I:
         copy_buf<int32_t>(src, dst);
         break;
@@ -304,12 +306,14 @@ inline void
     case HIP_R_8F_E5M2_FNUZ:
         _transform_buf<hipblaslt_bf8_fnuz>(src, dst, typeTc);
         break;
+#ifdef ROCM_USE_FLOAT8
     case HIP_R_8F_E4M3:
         _transform_buf<hipblaslt_f8>(src, dst, typeTc);
         break;
     case HIP_R_8F_E5M2:
         _transform_buf<hipblaslt_bf8>(src, dst, typeTc);
         break;
+#endif
     case HIP_R_32I:
         _transform_buf<int32_t>(src, dst, typeTc);
         break;

@@ -381,6 +381,7 @@ double norm_check_general(
                                                       lda,
                                                       static_cast<hipblaslt_bf8_fnuz*>(hCPU),
                                                       static_cast<hipblaslt_bf8_fnuz*>(hGPU));
+#ifdef ROCM_USE_FLOAT8
     case HIP_R_8F_E4M3:
         return norm_check_general<hipblaslt_f8>(norm_type,
                                                     M,
@@ -395,6 +396,7 @@ double norm_check_general(
                                                      lda,
                                                      static_cast<hipblaslt_bf8*>(hCPU),
                                                      static_cast<hipblaslt_bf8*>(hGPU));
+#endif
     case HIP_R_32I:
         return norm_check_general<int32_t>(
             norm_type, M, N, lda, static_cast<int32_t*>(hCPU), static_cast<int32_t*>(hGPU));
@@ -477,6 +479,7 @@ double norm_check_general(char        norm_type,
                                                       static_cast<hipblaslt_bf8_fnuz*>(hCPU),
                                                       static_cast<hipblaslt_bf8_fnuz*>(hGPU),
                                                       batch_count);
+#ifdef ROCM_USE_FLOAT8
     case HIP_R_8F_E4M3:
         return norm_check_general<hipblaslt_f8>(norm_type,
                                                     M,
@@ -495,6 +498,7 @@ double norm_check_general(char        norm_type,
                                                      static_cast<hipblaslt_bf8*>(hCPU),
                                                      static_cast<hipblaslt_bf8*>(hGPU),
                                                      batch_count);
+#endif
     case HIP_R_32I:
         return norm_check_general<int32_t>(norm_type,
                                            M,
@@ -558,11 +562,15 @@ bool norm_check(double norm_error, hipDataType type)
     case HIP_R_16BF:
         return norm_error < 0.1;
     case HIP_R_8F_E4M3_FNUZ:
+#ifdef ROCM_USE_FLOAT8
     case HIP_R_8F_E4M3:
         return norm_error < 0.125;
+#endif
     case HIP_R_8F_E5M2_FNUZ:
+#ifdef ROCM_USE_FLOAT8
     case HIP_R_8F_E5M2:
         return norm_error < 0.25;
+#endif
     case HIP_R_32I:
         return norm_error < 0.0001;
     case HIP_R_8I:
