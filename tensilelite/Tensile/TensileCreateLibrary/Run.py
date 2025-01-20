@@ -165,7 +165,7 @@ def writeHelpers(outputPath, kernelHelperObjs, KERNEL_HELPER_FILENAME_CPP, KERNE
 
 
 def writeSolutionsAndKernels(outputPath, asmToolchain, srcToolchain, solutions, kernels, kernelHelperObjs, \
-    kernelWriterAssembly, errorTolerant=False, generateSourcesAndExit=False, compress=True):
+    kernelWriterAssembly, errorTolerant=False, generateSourcesAndExit=False, compress=True, fromTensile=False):
   codeObjectFiles = []
 
   pushWorkingPath('build_tmp')
@@ -202,7 +202,7 @@ def writeSolutionsAndKernels(outputPath, asmToolchain, srcToolchain, solutions, 
   
   if not generateSourcesAndExit:
       codeObjectFiles += buildAssemblyCodeObjectFiles(asmToolchain, asmKernels, kernelWriterAssembly, outputPath, compress)
-      buildSourceCodeObjectFile(srcToolchain, outputPath, srcKernelFile)
+      buildSourceCodeObjectFile(srcToolchain, outputPath, fromTensile, srcKernelFile)
 
   popWorkingPath() # build_tmp
   popWorkingPath() # workingDir
@@ -211,7 +211,7 @@ def writeSolutionsAndKernels(outputPath, asmToolchain, srcToolchain, solutions, 
 
 
 def writeSolutionsAndKernelsTCL(outputPath, asmToolchain, srcToolchain, kernels, kernelHelperObjs, \
-    kernelWriterAssembly, compress=True):
+    kernelWriterAssembly, compress=True, fromTensile=False):
 
   pushWorkingPath('build_tmp')
   pushWorkingPath(os.path.basename(outputPath).upper())
