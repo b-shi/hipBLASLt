@@ -722,9 +722,9 @@ namespace TensileLite
                         }
                         auto& pristine = m_vdata[i].pristine[dataType];
                         pristine.initDescriptor.resize(1);
-                        
-                        auto numAllocatedElements = problem.tensors()[i].totalAllocatedElements(); 
-                        auto numAllocatedBytes = problem.tensors()[i].totalAllocatedBytes(); 
+
+                        auto numAllocatedElements = problem.tensors()[i].totalAllocatedElements();
+                        auto numAllocatedBytes = problem.tensors()[i].totalAllocatedBytes();
 
                         if ((problem.swizzleTensorA() && i == ContractionProblemGemm::TENSOR::A)
                             || (problem.swizzleTensorB() && i == ContractionProblemGemm::TENSOR::B))
