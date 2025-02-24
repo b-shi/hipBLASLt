@@ -28,10 +28,9 @@ from .CustomYamlLoader import load_yaml_stream
 from Tensile import __version__
 from Tensile.Common import printExit, printWarning, print2, \
                            versionIsCompatible, IsaInfo, DepthUConfig
-from Tensile.Common.Architectures import gfxToIsa
+from Tensile.Common.Architectures import defaultSolution, gfxToIsa
 from Tensile.SolutionStructs import Solution, ProblemSizes
 from Tensile.SolutionStructs.Problem import ProblemType
-
 from typing import NamedTuple, List, Dict
 import os
 import sys
@@ -95,6 +94,8 @@ def writeYAML(filename, data, **kwargs):
         kwargs["explicit_end"] = True
     if "default_flow_style" not in kwargs:
         kwargs["default_flow_style"] = None
+    if "sort_keys" not in kwargs:
+        kwargs["sort_keys"] = False
 
     with open(filename, "w") as f:
         yaml.dump(data, f, **kwargs)
@@ -322,7 +323,20 @@ def parseLibraryLogicData(
     ):
     """Parses the data of a library logic file."""
     if isinstance(data, List):
+        # TODO: this can be removed when all logic files have dict format
         data = parseLibraryLogicList(data, srcFile)
+    elif isinstance(data, dict) and "LibraryLogicVersion" in data:
+        libraryType = data["LibraryType"]
+        if libraryType == "FreeSize":
+            data["Library"] = {}
+            data["Library"]["indexOrder"] = None
+            data["Library"]["table"] = [0, len(data["Solutions"])]
+            data["Library"]["distance"] = None
+        elif libraryType == "Matching":
+            data["Library"] = {}
+            data["Library"]["indexOrder"] = data["IndexOrder"]
+            data["Library"]["table"] = data["ExactLogic"]
+            data["Library"]["distance"] = libraryType
 
     if "CUCount" not in data:
         data["CUCount"] = None
@@ -334,8 +348,25 @@ def parseLibraryLogicData(
     # unpack problemType
     problemType = ProblemType(data["ProblemType"], printIndexAssignmentInfo)
 
+    defaultSolutionLibLogic = data.get("DefaultSolution", defaultSolution)
+
     # unpack solution
     def solutionStateToSolution(solutionState, assembler, isaInfoMap) -> Solution:
+
+        # If parameter not in yaml, fill with default values
+        if "KernelLanguage" not in solutionState.keys():
+            solutionState["KernelLanguage"] = defaultSolution["KernelLanguage"]
+        if "CustomKernelName" not in solutionState.keys():
+            solutionState["CustomKernelName"] = defaultSolution["CustomKernelName"]
+
+        solutionState["ProblemType"] = data["ProblemType"];
+
+        # Default parameter values in the library logic take priority over ones in Common.py
+        for param, defVal in defaultSolutionLibLogic.items():
+            if param == "SolutionIndex": continue
+            if defaultSolution[param] != defVal:
+                solutionState[param] = defVal
+
         if solutionState["KernelLanguage"] == "Assembly":
             solutionState["ISA"] = gfxToIsa(data["ArchitectureName"])
         solutionState["CUCount"] = data["CUCount"]
@@ -403,11 +434,9 @@ def parseLibraryLogicList(data, srcFile="?"):
                 .format(srcFile, len(data)))
 
     rv = {}
+    rv["LibraryLogicVersion"] = "0.0.0"
     rv["MinimumRequiredVersion"] = data[0]["MinimumRequiredVersion"]
     rv["ScheduleName"] = data[1]
-    rv["DeviceNames"] = data[3]
-    rv["ProblemType"] = data[4]
-    rv["Solutions"] = data[5]
 
     if type(data[2]) is dict:
         rv["ArchitectureName"] = data[2]["Architecture"]
@@ -416,7 +445,19 @@ def parseLibraryLogicList(data, srcFile="?"):
         rv["ArchitectureName"] = data[2]
         rv["CUCount"] = None
 
+    rv["DeviceNames"] = data[3]
+
+    # DefaultSolution Field
+    if len(data) > 12 and data[12]:
+        rv["DefaultSolution"] = data[12]
+    else:
+        rv["DefaultSolution"] = dict(sorted(defaultSolution.items()))
+
+    rv["ProblemType"] = data[4]
+    rv["Solutions"] = data[5]
+
     # TODOBEN: figure out what to do with these...
+    rv["IndexOrder"] = data[6]
     rv["ExactLogic"] = data[7]
     rv["RangeLogic"] = data[8]
 
@@ -495,16 +536,17 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, libraryTyp
     if len(logicTuple) > 5 and logicTuple[5]:
         tileSelection = True
 
-    data = []
+    data = {}
     # Tensile version
-    data.append({"MinimumRequiredVersion": __version__})
+    data["MinimumRequiredVersion"] = __version__
     # schedule name
-    data.append(schedulePrefix)  # change from Tensile to vega10
-    # schedule architecture name and get CU count
+    data["ScheduleName"] = schedulePrefix  # change from Tensile to vega10
     CUCount=getCUCount()
-    data.append({"Architecture": architectureName, "CUCount": CUCount} if architectureName=="gfx942" and CUCount and CUCount!=304 else architectureName)
+    data["ArchitectureName"] = {"Architecture": architectureName, "CUCount": CUCount} if architectureName=="gfx942" and CUCount and CUCount!=304 else architectureName
     # schedule device names
-    data.append(deviceNames)
+    data["DeviceNames"] = deviceNames
+    # default solution (default values for tuning parameters)
+    data["DefaultSolution"] = Common.defaultSolution
     # problem type
     problemTypeState = problemType.state
     problemTypeState["DataType"] = \
@@ -532,76 +574,37 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, libraryTyp
     if "DataTypeMetadata" in problemTypeState:
         problemTypeState["DataTypeMetadata"] = \
                 problemTypeState["DataTypeMetadata"].value
-    data.append(problemTypeState)
+
+    data["ProblemType"] = problemTypeState
+
+    # remove parameters with are set to the default values
+    # so they are copied to the yaml files
+    def removeDefaultVals(params):
+        for k in list(params.keys()):
+            if k in Common.defaultSolution.keys():
+                if params[k] == Common.defaultSolution[k]:
+                    del params[k]
     # solutions
     solutionList = []
     for solution in solutions:
         solutionState = solution.getAttributes()
-        solutionState["ProblemType"] = solutionState["ProblemType"].state
-        solutionState["ProblemType"]["DataType"] = \
-                solutionState["ProblemType"]["DataType"].value
-        solutionState["ProblemType"]["DataTypeA"] = \
-                solutionState["ProblemType"]["DataTypeA"].value
-        solutionState["ProblemType"]["DataTypeB"] = \
-                solutionState["ProblemType"]["DataTypeB"].value
-        solutionState["ProblemType"]["DataTypeE"] = \
-                solutionState["ProblemType"]["DataTypeE"].value
-        solutionState["ProblemType"]["DataTypeAmaxD"] = \
-                solutionState["ProblemType"]["DataTypeAmaxD"].value
-        solutionState["ProblemType"]["DestDataType"] = \
-                solutionState["ProblemType"]["DestDataType"].value
-        solutionState["ProblemType"]["ComputeDataType"] = \
-                solutionState["ProblemType"]["ComputeDataType"].value
-        solutionState["ProblemType"]["BiasDataTypeList"] = \
-                [btype.value for btype in solutionState["ProblemType"]["BiasDataTypeList"]]
-        solutionState["ProblemType"]["ActivationComputeDataType"] = \
-                solutionState["ProblemType"]["ActivationComputeDataType"].value
-        solutionState["ProblemType"]["ActivationType"] = \
-                solutionState["ProblemType"]["ActivationType"].value
-        solutionState["ProblemType"]["F32XdlMathOp"] = \
-                solutionState["ProblemType"]["F32XdlMathOp"].value
-        if "DataTypeMetadata" in solutionState["ProblemType"]:
-            solutionState["ProblemType"]["DataTypeMetadata"] = \
-                    solutionState["ProblemType"]["DataTypeMetadata"].value
-        isa = solutionState["ISA"]
-        solutionState["ISA"] = [isa[0], isa[1], isa[2]]
+        removeDefaultVals(solutionState)
+        if "ProblemType" in solutionState.keys():
+            del solutionState["ProblemType"]
         solutionList.append(solutionState)
 
     if tileSelection:
         tileSolutions = logicTuple[5]
         for solution in tileSolutions:
             solutionState = solution.getAttributes()
-            solutionState["ProblemType"] = solutionState["ProblemType"].state
-            solutionState["ProblemType"]["DataType"] = \
-                    solutionState["ProblemType"]["DataType"].value
-            solutionState["ProblemType"]["DataTypeA"] = \
-                    solutionState["ProblemType"]["DataTypeA"].value
-            solutionState["ProblemType"]["DataTypeB"] = \
-                    solutionState["ProblemType"]["DataTypeB"].value
-            solutionState["ProblemType"]["DataTypeE"] = \
-                    solutionState["ProblemType"]["DataTypeE"].value
-            solutionState["ProblemType"]["DataTypeAmaxD"] = \
-                    solutionState["ProblemType"]["DataTypeAmaxD"].value
-            solutionState["ProblemType"]["DestDataType"] = \
-                    solutionState["ProblemType"]["DestDataType"].value
-            solutionState["ProblemType"]["ComputeDataType"] = \
-                    solutionState["ProblemType"]["ComputeDataType"].value
-            solutionState["ProblemType"]["BiasDataTypeList"] = \
-                    [btype.value for btype in solutionState["ProblemType"]["BiasDataTypeList"]]
-            solutionState["ProblemType"]["ActivationComputeDataType"] = \
-                    solutionState["ProblemType"]["ActivationComputeDataType"].value
-            solutionState["ProblemType"]["ActivationType"] = \
-                    solutionState["ProblemType"]["ActivationType"].value
-            solutionState["ProblemType"]["F32XdlMathOp"] = \
-                solutionState["ProblemType"]["F32XdlMathOp"].value
-            if "DataTypeMetadata" in solutionState["ProblemType"]:
-                solutionState["ProblemType"]["DataTypeMetadata"] = \
-                    solutionState["ProblemType"]["DataTypeMetadata"].value
+            removeDefaultVals(solutionState)
+            if "ProblemType" in solutionState.keys():
+                del solutionState["ProblemType"]
             solutionList.append(solutionState)
 
-    data.append(solutionList)
+    data["Solutions"] = solutionList
     # index order
-    data.append(indexOrder)
+    data["IndexOrder"] = indexOrder
 
     # exactLogic
     exactLogicList = []
@@ -613,7 +616,7 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, libraryTyp
         data.append(None)
 
     # rangeLogic
-    data.append(rangeLogic)
+    data["RangeLogic"] = rangeLogic
 
     if tileSelection:
         tileSelectionLogic = {}
@@ -623,6 +626,6 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, libraryTyp
     else:
         data.append(None)
 
-    data.append(logicTuple[7]) # PerfMetric
-    data.append(libraryType) # LibraryType
+    data["PerfMetric"] = logicTuple[7]
+    data["LibraryType"] = libraryType
     return data
