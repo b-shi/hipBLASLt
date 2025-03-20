@@ -213,7 +213,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
                module.add(vectorStaticRemainder(dummy, tReg, kReg, kernel["MatrixInstN"], tmpVgprRes, tmpSgprInfo, \
                                              "1. N offset: nIdx = wtid %% MI_N(%u)" % kernel["MatrixInstN"]))
             module.add(staticMultiply(vgpr(tReg), vgpr(tReg), strideTile, tmpSgprInfo, \
-                "1. N offset: nOffset = nIdx * nStride(%u)" % strideTile))
+                "1. N offset: nOffset = nIdx * nStride(%u) asdfasdfasdf" % strideTile))
             if enableLDSTr:
                 module.add(VAddU32(dst=vgpr(tReg), src0=vgpr(sReg), src1=vgpr(tReg), \
                            comment="1. offset in wave: lrOffset = bnOffset + lrKOffset"))

@@ -2036,9 +2036,9 @@ class Solution(collections.abc.Mapping):
       return False
 
     # so far, DirectToLds does not work with StreamK (TODO: enable StreamK case)
-    if state["StreamK"]:
-      reject(state, "DirectToLds does not support StreamK (tentative)")
-      return False
+    #if state["StreamK"]:
+    #  reject(state, "DirectToLds does not support StreamK (tentative)")
+    #  return False
 
     # ToDo: Review def of lrvw and this check
     # DTL + LocalReadVectorWidth > MIInputPerThread does not work
@@ -2078,9 +2078,9 @@ class Solution(collections.abc.Mapping):
 
     # so far, DirectToLds does not work well with PGR=2
     # performance is not good and a lot of ds_read for DTL can cause scheduling issue(need fix)
-    if state["PrefetchGlobalRead"] == 2:
-      reject(state, "can't use DirectToLds for PrefetchGlobalRead == 2")
-      return False
+    #if state["PrefetchGlobalRead"] == 2:
+    #  reject(state, "can't use DirectToLds for PrefetchGlobalRead == 2")
+    #  return False
 
     # so far, DirectToLds does not work with LRVW=2
     if state["LocalReadVectorWidth"] == 2:
@@ -2698,8 +2698,8 @@ class Solution(collections.abc.Mapping):
           else:
             ldsPadA = max(state["GlobalReadVectorWidthA"],optPadA)
             ## turn-off padding for directToLds
-            if state["DirectToLdsA"]:
-              ldsPadA = 0
+            #if state["DirectToLdsA"]:
+            #  ldsPadA = 0
           assert(ldsPadA >= 0)
 
         if ldsPadB == -1:
@@ -2717,8 +2717,8 @@ class Solution(collections.abc.Mapping):
                 ldsPadB = state["VectorWidthB"]
           else:
             ldsPadB = max(state["GlobalReadVectorWidthB"],optPadB)
-            if state["DirectToLdsB"]:
-              ldsPadB = 0
+            #if state["DirectToLdsB"]:
+            #  ldsPadB = 0
           assert(ldsPadB >= 0)
 
         ldsPadM = state["LdsPadMetadata"]
@@ -2741,9 +2741,9 @@ class Solution(collections.abc.Mapping):
 
         # set ldsPadA,B=0 for DirectToLds or DirectToVgpr
         # TODO: enable ldsPad for DirectToLds (if needed)
-        if state["DirectToLds"] or state["DirectToVgprA"]:
+        if state["DirectToVgprA"]:
           ldsPadA = 0
-        if state["DirectToLds"] or state["DirectToVgprB"]:
+        if state["DirectToVgprB"]:
           ldsPadB = 0
 
         return ldsPadA, ldsPadB, ldsPadM
@@ -2781,11 +2781,21 @@ class Solution(collections.abc.Mapping):
             LdsBlockSizePerPadB = 0
 
         # set LdsBlockSizePerPadA,B=0 for DirectToLds or DirectToVgpr
-        if state["DirectToLds"] or state["DirectToVgprA"]:
+        if state["DirectToVgprA"]:
           LdsBlockSizePerPadA = 0
-        if state["DirectToLds"] or state["DirectToVgprB"]:
+        if state["DirectToVgprB"]:
           LdsBlockSizePerPadB = 0
 
+        # TODO BEFORE PR: Calculate based on buffer load size
+        if state["DirectToLds"]:
+          #LdsBlockSizePerPadA = 1024
+          #LdsBlockSizePerPadB = 1024
+          bpeA = state["ProblemType"]["DataTypeA"].numBytes()
+          bpeB = state["ProblemType"]["DataTypeB"].numBytes()
+          LdsBlockSizePerPadA = (state[f"GlobalReadVectorWidthA"] * bpeA) * state["WavefrontSize"]
+          LdsBlockSizePerPadB = (state[f"GlobalReadVectorWidthB"] * bpeB) * state["WavefrontSize"]          
+          
+          
         return LdsBlockSizePerPadA, LdsBlockSizePerPadB
 
       def calcLdsNumBytes(ldsPadA: int, LdsBlockSizePerPadA: int, ldsPadB: int, LdsBlockSizePerPadB: int) -> int:
@@ -2794,21 +2804,36 @@ class Solution(collections.abc.Mapping):
         ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
 
         if state["UnrollMajorLDSA"]:
-          ldsNumBytesA = (state["_DepthUA"] + ldsPadA) * state["MacroTileA"] * bpeA
+          if state["DirectToLdsA"]:
+            loadSize = (state[f"GlobalReadVectorWidthA"] * bpeA) * state["WavefrontSize"]
+            ldsNumBytesA = (state["_DepthUA"]) * state["MacroTileA"] * bpeA
+            ldsNumBytesA += (ldsNumBytesA // loadSize) * state["LdsPadA"] * bpeA
+          else:
+            ldsNumBytesA = (state["_DepthUA"] + ldsPadA) * state["MacroTileA"] * bpeA
         else:
           ldsNumBytesA = state["_DepthUA"] * (state["MacroTileA"] + ldsPadA) * bpeA
         padInterval = LdsBlockSizePerPadA
+        print("padInterval", padInterval)
+        print("ldsNumBytesA", ldsNumBytesA)
+        print("UnrollMajorLDSA", state["UnrollMajorLDSA"])
+        #print("ldsneeded", state["_DepthUA"] * state["MacroTileA"] * bpeA)
         if padInterval != 0:
           ldsNumBytesA = int((state["_DepthUA"] * state["MacroTileA"] * bpeA) / padInterval * (padInterval + ldsPadA * bpeA))
         ldsNumBytesAlignedA = roundUpToNearestMultiple(ldsNumBytesA, ldsAlign)
-
+        print("ldsNumBytesAlignedA", ldsNumBytesAlignedA)
+        print("GlobalReadVectorWidthA", (state[f"GlobalReadVectorWidthA"] * bpeA) * state["WavefrontSize"])
         # DirectToVgpr case, set 0 to lds related variables
         if state["DirectToVgprA"]:
           ldsNumBytesA = 0
           ldsNumBytesAlignedA = 0
 
         if state["UnrollMajorLDSB"]:
-          ldsNumBytesB = (state["_DepthUB"] + ldsPadB) * state["MacroTileB"] * bpeB
+          if state["DirectToLdsB"]:
+            loadSize = (state[f"GlobalReadVectorWidthB"] * bpeB) * state["WavefrontSize"]
+            ldsNumBytesB = (state["_DepthUB"]) * state["MacroTileB"] * bpeB
+            ldsNumBytesB += (ldsNumBytesB // loadSize) * state["LdsPadB"] * bpeB
+          else:
+            ldsNumBytesB = (state["_DepthUB"] + ldsPadB) * state["MacroTileB"] * bpeB
         else:
           ldsNumBytesB = state["_DepthUB"] * (state["MacroTileB"] + ldsPadB) * bpeB
         padInterval = LdsBlockSizePerPadB
@@ -2837,6 +2862,7 @@ class Solution(collections.abc.Mapping):
           ldsNumBytesMetadata = 0
           ldsNumBytesAlignedMetadata = 0
 
+        print("ldsNumBytesA -- ", ldsNumBytesA)
         return ldsNumBytesA, ldsNumBytesAlignedA, ldsNumBytesB, ldsNumBytesAlignedB, ldsNumBytesMetadata, ldsNumBytesAlignedMetadata
 
       # Default LocalReadVectorWidth
@@ -3595,14 +3621,14 @@ class Solution(collections.abc.Mapping):
       if (not state["DirectToVgprA"]) and Solution.isDirectToLdsDoable(state, 'A'):
         state["DirectToLdsA"] = True
         state["LocalWriteUseSgprA"] = True
-        state["LdsPadA"] = 0
+        #state["LdsPadA"] = 0
         printWarning("DirectToLdsA enabled, set LdsPadA=0.")
         #print("DirectToLdsA", state["DirectToLdsA"])
 
       if (not state["DirectToVgprB"]) and Solution.isDirectToLdsDoable(state, 'B'):
         state["DirectToLdsB"] = True
         state["LocalWriteUseSgprB"] = True
-        state["LdsPadB"] = 0
+        #state["LdsPadB"] = 0
         printWarning("DirectToLdsB enabled, set LdsPadB=0.")
         #print("DirectToLdsB", state["DirectToLdsB"])
 
@@ -3655,13 +3681,16 @@ class Solution(collections.abc.Mapping):
       state["LdsOffsetB"] = state["LdsOffsetMetadata"] + state["LdsNumElementsAlignedMetadata"]
 
       offsetBlk = state["LdsOffsetB"] +  ldsNumBytesAlignedB
-      if offsetBlk > 0:
+      # Rounds B offset to a power of two to enable simpler local read addr swapping?
+      if offsetBlk > 0 and not (state["DirectToLds"] and (state["LdsPadA"] != 0 or state["LdsPadB"] != 0)):
         offsetBlk = int(2**(math.ceil(math.log(offsetBlk, 2))))
 
       state["LdsOffsetA_Blk"] = offsetBlk
       state["LdsOffsetMetadata_Blk"] = state["LdsOffsetA_Blk"] + state["LdsNumElementsAlignedA"]
       state["LdsOffsetB_Blk"] = state["LdsOffsetMetadata_Blk"] + state["LdsNumElementsAlignedMetadata"]
       ldsNumBytesAB = state["LdsOffsetB_Blk"] + ldsNumBytesB
+      print("ldsNumBytesAB", ldsNumBytesAB)
+      print("LdsOffsetA_Blk", offsetBlk)
     else:
       state["LdsOffsetMetadata"] = ldsNumBytesAlignedA
       state["LdsOffsetB"] = state["LdsOffsetMetadata"] + ldsNumBytesAlignedMetadata
@@ -3711,7 +3740,9 @@ class Solution(collections.abc.Mapping):
 
     # lds size is the greater of the two
     ldsNumBytes = max(ldsNumBytesAB, ldsNumBytesReduction, ldsNumBytesOccupancy)
-
+    print("lds sizes AB:", ldsNumBytesAlignedA , ldsNumBytesAlignedB , ldsNumBytesMetadata)
+    print("lds sizes:", ldsNumBytesAB, ldsNumBytesReduction, ldsNumBytesOccupancy)
+    
     if state["NumElementsPerBatchStore"] == -1:
       if ldsNumBytes > 32768 or \
           state["ProblemType"]["ComputeDataType"].numBytes() * state["MacroTile0"] * state["MacroTile1"] > 32768*4:

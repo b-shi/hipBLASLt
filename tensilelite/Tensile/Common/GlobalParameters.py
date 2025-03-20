@@ -262,22 +262,7 @@ globalParameters["ShortNames"] = (
 )
 
 globalParameters["SupportedISA"] = [
-    (8, 0, 3),
-    (9, 0, 0),
-    (9, 0, 6),
-    (9, 0, 8),
-    (9, 0, 10),
-    (9, 4, 2),
     (9, 5, 0),
-    (10, 1, 0),
-    (10, 1, 1),
-    (10, 1, 2),
-    (10, 3, 0),
-    (11, 0, 0),
-    (11, 0, 1),
-    (11, 0, 2),
-    (12, 0, 0),
-    (12, 0, 1),
 ]  # assembly kernels writer supports these architectures
 
 globalParameters["NewClient"] = 2  # Old client deprecated: NewClient must be set to 2.
