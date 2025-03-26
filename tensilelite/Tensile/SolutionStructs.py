@@ -2387,9 +2387,12 @@ class Solution(collections.abc.Mapping):
     state["DirectToLdsB"] = False
     state["LocalWriteUseSgprA"] = False
     state["LocalWriteUseSgprB"] = False
-
+    state["StoreSwapAddr"] = True
+    #state["StoreSwapAddrB"] = True
+    
     state["WorkGroupMappingXCC"] = abs(state["WorkGroupMappingXCC"])
 
+    
     problemType = state["ProblemType"]
 
     for (tc,batchMask) in (('A', 0x1), ('B', 0x2)):
@@ -3673,6 +3676,12 @@ class Solution(collections.abc.Mapping):
     state["LdsOffsetB_Blk"]=0
     # todo, can the alignment be a power of 2?
     state["LdsOffsetA"] = 0
+
+    # Store swap pointers (for now) for DTL + padding cases
+    if state["DirectToLds"] and (state["LdsPadA"] > 0 or state["LdsPadB"]):
+      state["ExpandPointerSwap"] = 0
+      state["StoreSwapAddr"] = True
+    
     if state["PrefetchGlobalRead"]:
       state["LdsNumElementsAlignedA"] = ldsNumBytesAlignedA
       state["LdsNumElementsAlignedB"] = ldsNumBytesAlignedB
@@ -3681,8 +3690,8 @@ class Solution(collections.abc.Mapping):
       state["LdsOffsetB"] = state["LdsOffsetMetadata"] + state["LdsNumElementsAlignedMetadata"]
 
       offsetBlk = state["LdsOffsetB"] +  ldsNumBytesAlignedB
-      # Rounds B offset to a power of two to enable simpler local read addr swapping?
-      if offsetBlk > 0 and not (state["DirectToLds"] and (state["LdsPadA"] != 0 or state["LdsPadB"] != 0)):
+      if offsetBlk > 0 and state["ExpandPointerSwap"] and not state["StoreSwapAddr"]: 
+        # Rounds B offset to a power of two to enable inlining {s,v}_xor constants for swapping offsets
         offsetBlk = int(2**(math.ceil(math.log(offsetBlk, 2))))
 
       state["LdsOffsetA_Blk"] = offsetBlk

@@ -83,6 +83,8 @@ class ABMatrixInfo(MatrixInfo):
   startVgprGlobalReadOffset: int = -1
   numVgprLocalReadSwapAddr: int  = -1
   startVgprLocalReadSwapAddr: int= -1
+  numVgprLocalWriteSwapAddr: int  = -1
+  startVgprLocalWriteSwapAddr: int= -1
   numSgprGlobalReadIncs: int     = -1
 
 # States
@@ -2166,7 +2168,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           if isSwapLroIter: # ResetLroIter
             # Swap, reset, or increment the LRO:
             # force internalPointerSwap = False in NGLL case
-            internalPointerSwap = expand and not isNGLL
+            internalPointerSwap = (expand or kernel["StoreSwapAddr"]) and not (isNGLL and kernel["PrefetchGlobalRead"] < 2)
             pointerLRCode.addComment1("local read swap offsets a")
             pointerLRCode.add(self.localReadSwapOffsets(kernel, internalPointerSwap, tensorParametersA))
             pointerLRCode.addComment1("local read swap offsets b")
@@ -2565,12 +2567,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if isSwapLroIter: # ResetLroIter
           # Swap, reset, or increment the LRO:
           pointerLRCode.addComment1("local read swap offsets a")
-          pointerLRCode.add(self.localReadSwapOffsets(kernel, expand, tensorParametersA))
+          pointerLRCode.add(self.localReadSwapOffsets(kernel, expand or kernel["StoreSwapAddr"], tensorParametersA))
           if kernel["ProblemType"]["Sparse"] and not kernel["DirectToVgprSparseMetadata"]:
             pointerLRCode.addComment1("local read swap offsets metadata")
             pointerLRCode.add(self.localReadSwapOffsets(kernel, expand, tPM))
           pointerLRCode.addComment1("local read swap offsets b")
-          pointerLRCode.add(self.localReadSwapOffsets(kernel, expand, tensorParametersB))
+          pointerLRCode.add(self.localReadSwapOffsets(kernel, expand or kernel["StoreSwapAddr"], tensorParametersB))
 
       if isResetLroIter: # ResetLroIter
         pointerLRCode.addComment1("local read init pointers a")
@@ -2687,9 +2689,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       module.add(self.preLoopLocalWriteCode)
       # swap local ptrs
       module.addComment1("local write swap a")
-      module.add(self.localWriteSwapOffsets(kernel, expand, tensorParametersA))
+      module.add(self.localWriteSwapOffsets(kernel, expand or kernel["StoreSwapAddr"], tensorParametersA))
       module.addComment1("local write swap b")
-      module.add(self.localWriteSwapOffsets(kernel, expand, tensorParametersB))
+      module.add(self.localWriteSwapOffsets(kernel, expand or kernel["StoreSwapAddr"], tensorParametersB))
 
       if kernel["PrefetchGlobalRead"] == 2:
         module.add(self.openPrefetchGlobalRead2(kernel))
@@ -3908,7 +3910,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.states.b.numVgprLocalWriteAddr = 0 if kernel["LocalWriteUseSgprB"] else 1 * self.states.rpla
     self.states.a.numVgprLocalReadSwapAddr = 0
     self.states.b.numVgprLocalReadSwapAddr = 0
-
+    self.states.a.numVgprLocalWriteSwapAddr = 0
+    self.states.b.numVgprLocalWriteSwapAddr = 0
+    
     if self.states.archCaps["HasLDSGT64K"]:
       if kernel["LdsOffsetA_Blk"]>=131072:
         self.states.a.numVgprLocalReadAddr =3* self.states.rpla
@@ -3948,11 +3952,18 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if kernel["DirectToVgprB"] or kernel["DirectToLdsB"]:
       self.states.b.numVgprLocalWriteAddr = 0
 
-    if kernel["DirectToLds"] and (kernel["LdsPadA"] != 0 or kernel["LdsPadB"] != 0):
+    if kernel["StoreSwapAddr"]:
       self.states.a.numVgprLocalReadSwapAddr = 1
-    if kernel["DirectToLds"] and (kernel["LdsPadA"] != 0 or kernel["LdsPadB"] != 0):
       self.states.b.numVgprLocalReadSwapAddr = 1
+      self.states.a.numVgprLocalWriteSwapAddr = 1
+      self.states.b.numVgprLocalWriteSwapAddr = 1
 
+    # No local write offsets needed for DTL
+    if kernel["DirectToLdsA"]:
+      self.states.a.numVgprLocalWriteSwapAddr = 0
+    if kernel["DirectToLdsB"]:
+      self.states.b.numVgprLocalWriteSwapAddr = 0
+      
     ####################################
     # num vgprs: global read addresses
     numGlobalReadsA = kernel["NumLoadsCoalescedA"] \
@@ -4299,7 +4310,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if self.states.b.numVgprLocalReadSwapAddr > 0:
       self.states.b.startVgprLocalReadSwapAddr = vgprIdx
       vgprIdx += 1
-
+    if self.states.a.numVgprLocalWriteSwapAddr > 0:
+      self.states.a.startVgprLocalWriteSwapAddr = vgprIdx
+      vgprIdx += 1
+    if self.states.b.numVgprLocalWriteSwapAddr > 0:
+      self.states.b.startVgprLocalWriteSwapAddr = vgprIdx
+      vgprIdx += 1
+      
     # TODO: Serial is always the first/last register in the pool so the store
     # code doesn't have to deal with fragmentation
     self.states.startVgprSerial = vgprIdx
@@ -4519,12 +4536,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.defineSgpr("LocalWriteAddrA", 1)
     if kernel["LocalWriteUseSgprB"]:
         self.defineSgpr("LocalWriteAddrB", 1)
-
+        
     # To be safe if either LdsPadA/B, allocate swap pointers
-    if kernel["DirectToLds"] and (kernel["LdsPadA"] != 0 or kernel["LdsPadB"] != 0):
+    if kernel["StoreSwapAddr"] and not kernel["ExpandPointerSwap"]:
         self.defineSgpr("SwapA", 1)
-    if kernel["DirectToLds"] and (kernel["LdsPadA"] != 0 or kernel["LdsPadB"] != 0):
         self.defineSgpr("SwapB", 1)
+    #if kernel["StoreSwapAddrB"]:
+        
 
     if GSUAMBSK:
       self.defineSgpr("AddressTD", numSgprAddressD, align=2)
