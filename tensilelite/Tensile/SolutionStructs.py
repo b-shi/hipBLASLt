@@ -2387,12 +2387,11 @@ class Solution(collections.abc.Mapping):
     state["DirectToLdsB"] = False
     state["LocalWriteUseSgprA"] = False
     state["LocalWriteUseSgprB"] = False
-    state["StoreSwapAddr"] = True
-    #state["StoreSwapAddrB"] = True
-    
+    state["StoreSwapAddr"] = False
+
     state["WorkGroupMappingXCC"] = abs(state["WorkGroupMappingXCC"])
 
-    
+
     problemType = state["ProblemType"]
 
     for (tc,batchMask) in (('A', 0x1), ('B', 0x2)):
@@ -2597,7 +2596,7 @@ class Solution(collections.abc.Mapping):
         break
     if "ValidDepthU" in state:
       del state["ValidDepthU"]
- 
+
   def depthUIteration(state, index, depthuList, problemType, isa, bufferLoad, packedC0, packedC1):
     ########################################
     # Auto search for DepthU starts here
@@ -2796,9 +2795,9 @@ class Solution(collections.abc.Mapping):
           bpeA = state["ProblemType"]["DataTypeA"].numBytes()
           bpeB = state["ProblemType"]["DataTypeB"].numBytes()
           LdsBlockSizePerPadA = (state[f"GlobalReadVectorWidthA"] * bpeA) * state["WavefrontSize"]
-          LdsBlockSizePerPadB = (state[f"GlobalReadVectorWidthB"] * bpeB) * state["WavefrontSize"]          
-          
-          
+          LdsBlockSizePerPadB = (state[f"GlobalReadVectorWidthB"] * bpeB) * state["WavefrontSize"]
+
+
         return LdsBlockSizePerPadA, LdsBlockSizePerPadB
 
       def calcLdsNumBytes(ldsPadA: int, LdsBlockSizePerPadA: int, ldsPadB: int, LdsBlockSizePerPadB: int) -> int:
@@ -3678,10 +3677,10 @@ class Solution(collections.abc.Mapping):
     state["LdsOffsetA"] = 0
 
     # Store swap pointers (for now) for DTL + padding cases
-    if state["DirectToLds"] and (state["LdsPadA"] > 0 or state["LdsPadB"]):
+    if state["DirectToLds"] and (state["LdsPadA"] > 0 or state["LdsPadB"] > 0):
       state["ExpandPointerSwap"] = 0
       state["StoreSwapAddr"] = True
-    
+
     if state["PrefetchGlobalRead"]:
       state["LdsNumElementsAlignedA"] = ldsNumBytesAlignedA
       state["LdsNumElementsAlignedB"] = ldsNumBytesAlignedB
@@ -3690,7 +3689,7 @@ class Solution(collections.abc.Mapping):
       state["LdsOffsetB"] = state["LdsOffsetMetadata"] + state["LdsNumElementsAlignedMetadata"]
 
       offsetBlk = state["LdsOffsetB"] +  ldsNumBytesAlignedB
-      if offsetBlk > 0 and state["ExpandPointerSwap"] and not state["StoreSwapAddr"]: 
+      if offsetBlk > 0 and not state["StoreSwapAddr"]:
         # Rounds B offset to a power of two to enable inlining {s,v}_xor constants for swapping offsets
         offsetBlk = int(2**(math.ceil(math.log(offsetBlk, 2))))
 
@@ -3751,7 +3750,7 @@ class Solution(collections.abc.Mapping):
     ldsNumBytes = max(ldsNumBytesAB, ldsNumBytesReduction, ldsNumBytesOccupancy)
     print("lds sizes AB:", ldsNumBytesAlignedA , ldsNumBytesAlignedB , ldsNumBytesMetadata)
     print("lds sizes:", ldsNumBytesAB, ldsNumBytesReduction, ldsNumBytesOccupancy)
-    
+
     if state["NumElementsPerBatchStore"] == -1:
       if ldsNumBytes > 32768 or \
           state["ProblemType"]["ComputeDataType"].numBytes() * state["MacroTile0"] * state["MacroTile1"] > 32768*4:
@@ -3968,7 +3967,7 @@ class Solution(collections.abc.Mapping):
       maxTurn = calcEpilogueTurns([0, 1])
     vecDT.bias(0).turn = maxTurn
     vecDT.bias(1).turn = maxTurn
-  
+
     # Calc LDS for SAV
     maxTurn = 0
     if savDim == 1:

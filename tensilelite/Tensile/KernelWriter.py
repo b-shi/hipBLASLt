@@ -3912,7 +3912,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.states.b.numVgprLocalReadSwapAddr = 0
     self.states.a.numVgprLocalWriteSwapAddr = 0
     self.states.b.numVgprLocalWriteSwapAddr = 0
-    
+
     if self.states.archCaps["HasLDSGT64K"]:
       if kernel["LdsOffsetA_Blk"]>=131072:
         self.states.a.numVgprLocalReadAddr =3* self.states.rpla
@@ -3955,15 +3955,17 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if kernel["StoreSwapAddr"]:
       self.states.a.numVgprLocalReadSwapAddr = 1
       self.states.b.numVgprLocalReadSwapAddr = 1
-      self.states.a.numVgprLocalWriteSwapAddr = 1
-      self.states.b.numVgprLocalWriteSwapAddr = 1
+      if not kernel["LocalWriteUseSgprA"]:
+        self.states.a.numVgprLocalWriteSwapAddr = 1
+      if not kernel["LocalWriteUseSgprB"]:
+        self.states.b.numVgprLocalWriteSwapAddr = 1
 
     # No local write offsets needed for DTL
-    if kernel["DirectToLdsA"]:
-      self.states.a.numVgprLocalWriteSwapAddr = 0
-    if kernel["DirectToLdsB"]:
-      self.states.b.numVgprLocalWriteSwapAddr = 0
-      
+    #if kernel["DirectToLdsA"]:
+    #  self.states.a.numVgprLocalWriteSwapAddr = 0
+    #if kernel["DirectToLdsB"]:
+    #  self.states.b.numVgprLocalWriteSwapAddr = 0
+
     ####################################
     # num vgprs: global read addresses
     numGlobalReadsA = kernel["NumLoadsCoalescedA"] \
@@ -4316,7 +4318,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if self.states.b.numVgprLocalWriteSwapAddr > 0:
       self.states.b.startVgprLocalWriteSwapAddr = vgprIdx
       vgprIdx += 1
-      
+
     # TODO: Serial is always the first/last register in the pool so the store
     # code doesn't have to deal with fragmentation
     self.states.startVgprSerial = vgprIdx
@@ -4536,13 +4538,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.defineSgpr("LocalWriteAddrA", 1)
     if kernel["LocalWriteUseSgprB"]:
         self.defineSgpr("LocalWriteAddrB", 1)
-        
+
     # To be safe if either LdsPadA/B, allocate swap pointers
     if kernel["StoreSwapAddr"] and not kernel["ExpandPointerSwap"]:
+      if kernel["LocalWriteUseSgprA"]:
         self.defineSgpr("SwapA", 1)
+      if kernel["LocalWriteUseSgprB"]:
         self.defineSgpr("SwapB", 1)
-    #if kernel["StoreSwapAddrB"]:
-        
+
 
     if GSUAMBSK:
       self.defineSgpr("AddressTD", numSgprAddressD, align=2)
