@@ -28,7 +28,8 @@ from .CustomYamlLoader import load_yaml_stream
 from Tensile import __version__
 from Tensile.Common import printExit, printWarning, print2, \
                            versionIsCompatible, IsaInfo, DepthUConfig
-from Tensile.Common.Architectures import defaultSolution, gfxToIsa
+from Tensile.Common.Architectures import gfxToIsa
+from Tensile.Common.GlobalParameters import defaultSolution
 from Tensile.SolutionStructs import Solution, ProblemSizes
 from Tensile.SolutionStructs.Problem import ProblemType
 from typing import NamedTuple, List, Dict
