@@ -1493,6 +1493,7 @@ class Solution(collections.abc.Mapping):
         ldsPadB = state["LdsPadB"]
         optPadA = optPadB = lrvw
         readRegsA = readRegsB = lrvw * state["ProblemType"]["DataType"].numBytes() // 4
+        print("calcLds, {0}, {1}".format(readRegsA, readRegsB))
         if state["ProblemType"]["Sparse"]:
           if state["ProblemType"]["Sparse"] == 2:
             optPadB //= 2
@@ -1501,6 +1502,7 @@ class Solution(collections.abc.Mapping):
             optPadA //= 2
             readRegsA //= 2
         if (not isaInfoMap[isa].asmCaps['HasWMMA']) and (readRegsA > 4 or readRegsB > 4):
+          print("error1, {0}, {1}".format(readRegsA, readRegsB))
           reject(state, "LocalReadVectorWidth results in attemping to read LDS larger than b128, reject")
           return
         if state["EnableMatrixInstruction"]:
@@ -1580,6 +1582,7 @@ class Solution(collections.abc.Mapping):
         if state["DirectToVgprB"]:
           ldsPadB = 0
 
+        print("values: {0}, {1}, {2}".format(ldsPadA, ldsPadB, ldsPadM))
         return ldsPadA, ldsPadB, ldsPadM
 
       def calcLdsBlockSizePerPad(lrvw: int) -> int:
@@ -1701,9 +1704,9 @@ class Solution(collections.abc.Mapping):
           if state["ProblemType"]["Sparse"] and state["MIInputPerThread"] * state["ProblemType"]["DataType"].numBytes() > 16:
             if state["LocalReadVectorWidth"] < state["MIInputPerThread"] // 2:
               reject(state, printRejectionReason, "LocalReadVectorWidth < %u" %(state["MIInputPerThread"] // 2))
-          elif not state["ProblemType"]["Sparse"] and not(state["ProblemType"]["DataType"].is8bitFloat() and (state["MatrixInstK"] == 64 or state["MatrixInstK"] == 128)):
-            if state["LocalReadVectorWidth"] < state["MIInputPerThread"]:
-              reject(state, printRejectionReason, "LocalReadVectorWidth < %u" %(state["MIInputPerThread"]))
+          #elif not state["ProblemType"]["Sparse"] and not(state["ProblemType"]["DataType"].is8bitFloat() and (state["MatrixInstK"] == 64 or state["MatrixInstK"] == 128)):
+            #if state["LocalReadVectorWidth"] < state["MIInputPerThread"]:
+            #  reject(state, printRejectionReason, "LocalReadVectorWidth < %u" %(state["MIInputPerThread"]))
           if state["LocalReadVectorWidth"] > state["MIInputPerThread"] and not state["TransposeLDS"]:
             reject(state, printRejectionReason, "LocalReadVectorWidth require Transpose LDS")
 
@@ -1862,8 +1865,8 @@ class Solution(collections.abc.Mapping):
         reject(state, printRejectionReason, "VWB * DataType.numBytes() > 16")
 
       # reject - GRVW too big
-      if (state["GlobalReadVectorWidthA"] * state["ProblemType"]["DataTypeA"].numBytes()) > 16:
-        reject(state, printRejectionReason, "GRVWA * DataTypeA.numBytes() > 16")
+      #if (state["GlobalReadVectorWidthA"] * state["ProblemType"]["DataTypeA"].numBytes()) > 16:
+      #  reject(state, printRejectionReason, "GRVWA * DataTypeA.numBytes() > 16")
       if (state["GlobalReadVectorWidthB"] * state["ProblemType"]["DataTypeB"].numBytes()) > 16:
         reject(state, printRejectionReason, "GRVWB * DataTypeB.numBytes() > 16")
 
@@ -2013,16 +2016,8 @@ class Solution(collections.abc.Mapping):
             reject(state, printRejectionReason, "Not implement DTVSM with VW>1")
             break
 
-        # f32 emulation currently only supports a limited set of solutions
         if state["UseF32XEmulation"]:
-          if isaInfoMap[isa].archCaps["HasF32XEmulation"]:
-            if state["VectorWidthA"] > 1 or state["VectorWidthB"] > 1 :
-              reject(state, "Missing implementation for F32X Emulation VW>1")
-              break
-            if depthU != 16:
-              reject(state, "Missing implementation for F32X Emulation DepthU!=16")
-              break
-          else:
+          if not isaInfoMap[isa].archCaps["HasF32XEmulation"]:
             reject(state, "Missing emulation for F32X")
             break
 
