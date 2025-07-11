@@ -212,11 +212,17 @@ class LraTileAssignmentMFMA(LraTileAssignment):
               isSparseTrack = (kernel["ProblemType"]["Sparse"] == 2 and tP["isB"]) or (kernel["ProblemType"]["Sparse"] == 1 and tP["isA"]) or tP["isM"]
               strideK      = (inputPerThread if umlds else (mt + LdsPad) * inputPerThread) * (2 if isSparseTrack and kernel["MIInputPerThread%s"%tc] >  inputPerThread else 1)
         #special case for new F8 MFMA
-        elif  kernel["ProblemType"]["DataType"].is8bitFloat() and kernel["MatrixInstK"] > 32:
+        elif kernel["ProblemType"]["DataType"].is8bitFloat() and kernel["MatrixInstK"] > 32:
             if umlds:
                 strideK = 16
             else:
                 strideK = (mt + LdsPad) * 16
+        elif kernel["UseF32XEmulation"] and not (kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16):
+            if umlds:
+                strideK = 4
+            else:
+                strideK = (mt + LdsPad) * 4
+
         strideBlock      = kernel["MatrixInstM"] * strideTile
         if enableLDSTr:
            strideWave = kernel["MatrixInstM"] * vectorWidth
@@ -288,10 +294,6 @@ class LraTileAssignmentMFMA(LraTileAssignment):
                                           comment="5.2 offset in wave: lrOffset = bnOffset + lrKOffset"))
                         module.add(VAddU32(dst=vgpr(tReg), src0=vgpr(kReg), src1=vgpr(tReg), \
                                           comment="6. offset in wave: lrOffset = bnOffset + lrKOffset"))
-                    elif (kernel["MIInputPerThreadA"] == 8):
-                        # 256b reads require additional offset, offset += int(serialId / 16) * 16
-                        module.add(VLShiftLeftAddU32(dst=vgpr(tReg), shiftHex=3, src0=vgpr(kReg), src1=vgpr(tReg), \
-                                                    comment="256b offset"))
                     else:
                         module.add(vectorStaticMultiplyAdd(vgpr(tReg), vgpr(kReg), strideK, vgpr(tReg), tmpSgprInfo, \
                                                 "5. K offset: lrKOffset = kIdx * mStride(%u); 6. offset in wave: lrOffset = bnOffset + lrKOffset" % (strideK)))
