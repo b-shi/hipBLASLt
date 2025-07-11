@@ -911,9 +911,6 @@ class KernelWriterAssembly(KernelWriter):
 
     module.add(RegSet("v", "vgprSerial", self.states.startVgprSerial))
 
-    if kernel["ProblemType"]["F32XdlMathOp"] and kernel["UseF32XEmulation"]:
-      module.add(RegSet("v", "vgprCvt", self.states.startVgprCvt))
-
     if self.debugConfig.debugKernel:
       module.add(RegSet("v", "vgprAddressDbg", \
           self.states.startVgprAddressDbg))
@@ -5649,8 +5646,8 @@ class KernelWriterAssembly(KernelWriter):
 
         if noExit:
           # No exit. No dec code if decValue is 2
-          # if decValue == 2:
-            # decCode = ""
+          if decValue == 2:
+            decCode = ""
           condCode = ""
           nonFinalJumpNeeded = False
           if finalLoop:
@@ -6319,7 +6316,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # MFMA Iteration
   ##############################################################################
-  def mfmaIter(self, kernel, tPA, tPB, u, innerUnroll, vregSetIdx, unrollLoopIdx = 0, unrollIdx = 0, tail = False, firstIter = False):
+  def mfmaIter(self, kernel, tPA, tPB, u, innerUnroll, vregSetIdx, unrollLoopIdx = 0, unrollIdx = 0, tail = False, firstIter = False, postShiftK = Module()):
     imod = Module("mi")
     shiftK = Module("shiftK")
     m = (u) % (self.states.numVgprBuffer) # local to use for MACs
@@ -6495,6 +6492,8 @@ class KernelWriterAssembly(KernelWriter):
                 if self.states.asmCaps["HasMFMA_f8f6f4"]:
                   if group == 2 and vgprPerInputA == 8: #special layout for F8
                     kIncA = 56 if kernel["MatrixInstK"] == 128 else 24
+                    if kernel["UseF32XEmulation"]:
+                      kIncA = 14 if kernel["MatrixInstK"] == 32 else 6
                 shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncA, "add part of K"))
               if kernel["LocalSplitU"] > 1:
                 shiftK.add(SMinI32(dst=sgpr(loopCntSgpr), src0=sgpr(loopCounterName), src1=sgpr("LSUTailLoopOffset"), comment="check lsu bound"))
@@ -6539,6 +6538,8 @@ class KernelWriterAssembly(KernelWriter):
                 kIncB = numMIInput//numSet0GroupB
                 if group == 2 and vgprPerInputB == 8:
                    kIncB = 56 if kernel["MatrixInstK"] == 128 else 24
+                   if kernel["UseF32XEmulation"]:
+                     kIncB = 14 if kernel["MatrixInstK"] == 32 else 6
                 shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncB, "add part of K"))
               # replace 0 for differnet thread
               if kernel["LocalSplitU"] > 1:
@@ -6636,6 +6637,8 @@ class KernelWriterAssembly(KernelWriter):
                         kIncA = numMIInput//numSet0GroupA
                         if bk == 4 and self.states.asmCaps["HasMFMA_f8f6f4"]:
                           kIncA = 56 if kernel["MatrixInstK"] == 128 else 24
+                          if kernel["UseF32XEmulation"]:
+                            kIncA = 14 if kernel["MatrixInstK"] == 32 else 6
                         shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncA, "add part of K"))
                       # replace 0 for differnet thread
                       if kernel["LocalSplitU"] > 1:
@@ -6708,6 +6711,8 @@ class KernelWriterAssembly(KernelWriter):
                         kIncB = numMIInput//numSet0GroupB
                         if bk == 4: # when vgprPerInput == 8
                           kIncB = 56 if kernel["MatrixInstK"] == 128 else 24
+                          if kernel["UseF32XEmulation"]:
+                            kIncB = 14 if kernel["MatrixInstK"] == 32 else 6
                         shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncB, "add part of K"))
                       # replace 0 for differnet thread
                       if kernel["LocalSplitU"] > 1:
@@ -6762,7 +6767,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if s_nop != 0:
       imod.add(SNop(waitState=(s_nop - 1), comment=""))
-
+      
     prevAccIdx = -1
     for iui in range(0, innerUnroll):
       if kernel["ProblemType"]["Sparse"] and not kernel["DirectToVgprSparseMetadata"]:
@@ -6908,13 +6913,31 @@ class KernelWriterAssembly(KernelWriter):
             else:
               # TF32 Emulation
               if kernel["UseF32XEmulation"]:
-                acc=self.accVgprReadWriteIndex(kernel, (accStart+accStoreCIdx), (accEnd-accStart+1))
-                acc2=self.accVgprReadWriteIndex(kernel, accStart, (accEnd-accStart+1))
-                emulation = F32XEmulationMFMA()
-                #mfma_1k = True
-                imod.add(emulation(kernel, acc, acc2, src0, src1, miInInstType, miOutInstType, variant, mfma_1k,\
-                  vgprPerInputA, neg_flag=neg_flag))
-                imod.add(TextBlock("/*mfma ops: {0} {1}*/\n".format(str(src0), str(src1))))
+                abOffsetStr = "+2" if kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16 else "+4"
+                if kernel["SourceSwap"]:
+                  src1_0     = vgpr(aStr_base[:-4], vgprPerInputA / 2)
+                  src1_1     = vgpr(aStr_base[:-4] + abOffsetStr, vgprPerInputA / 2)
+                  src0_0     = vgpr(bStr_base[:-4], vgprPerInputB / 2)
+                  src0_1     = vgpr(bStr_base[:-4] + abOffsetStr, vgprPerInputB / 2)
+                else:
+                  src1_0     = vgpr(bStr_base[:-4], vgprPerInputB / 2)
+                  src1_1     = vgpr(bStr_base[:-4] + abOffsetStr, vgprPerInputB / 2)
+                  src0_0     = vgpr(aStr_base[:-4], vgprPerInputA / 2)
+                  src0_1     = vgpr(aStr_base[:-4] + abOffsetStr, vgprPerInputA / 2)
+
+
+                imod.add(MFMAInstruction(instType=InstType.INST_BF16, accType=miOutInstType, variant=variant, mfma1k=mfma_1k, \
+                                       acc=self.accVgprReadWriteIndex(kernel, (accStart+accStoreCIdx), (accEnd-accStart+1)), \
+                                       a=src0_0, b=src1_1, acc2=self.accVgprReadWriteIndex(kernel, accStart, (accEnd-accStart+1)), neg=neg_flag,\
+                                       comment="left value = %s[%u+%u:%u+%u]" % (accumRegType, accStart, accStoreCIdx, accEnd, accStoreCIdx)))
+                imod.add(MFMAInstruction(instType=InstType.INST_BF16, accType=miOutInstType, variant=variant, mfma1k=mfma_1k, \
+                                       acc=self.accVgprReadWriteIndex(kernel, (accStart+accStoreCIdx), (accEnd-accStart+1)), \
+                                       a=src0_1, b=src1_0, acc2=self.accVgprReadWriteIndex(kernel, accStart, (accEnd-accStart+1)), neg=neg_flag,\
+                                       comment="left value = %s[%u+%u:%u+%u]" % (accumRegType, accStart, accStoreCIdx, accEnd, accStoreCIdx)))
+                imod.add(MFMAInstruction(instType=InstType.INST_BF16, accType=miOutInstType, variant=variant, mfma1k=mfma_1k, \
+                                       acc=self.accVgprReadWriteIndex(kernel, (accStart+accStoreCIdx), (accEnd-accStart+1)), \
+                                       a=src0_0, b=src1_0, acc2=self.accVgprReadWriteIndex(kernel, accStart, (accEnd-accStart+1)), neg=neg_flag,\
+                                       comment="left value = %s[%u+%u:%u+%u]" % (accumRegType, accStart, accStoreCIdx, accEnd, accStoreCIdx)))
               else:
                 imod.add(MFMAInstruction(instType=miInInstType, accType=miOutInstType, variant=variant, mfma1k=mfma_1k, \
                                        acc=self.accVgprReadWriteIndex(kernel, (accStart+accStoreCIdx), (accEnd-accStart+1)), \
@@ -6922,7 +6945,6 @@ class KernelWriterAssembly(KernelWriter):
                                        comment="left value = %s[%u+%u:%u+%u]" % (accumRegType, accStart, accStoreCIdx, accEnd, accStoreCIdx)))
             prevAccIdx = accIdx
             global dbgCounterMFMA
-            imod.add(TextBlock(str("label_mfma_") + str(dbgCounterMFMA) + ":\n"))
             dbgCounterMFMA += 1
 
       if kernel["ExpertSchedulingMode"] > 0:
@@ -6936,6 +6958,7 @@ class KernelWriterAssembly(KernelWriter):
 
     mfmaMod = Module("mfmaCode")
     if self.do["MAC"]:
+      shiftK.add(postShiftK)
       mfmaMod.add(shiftK)
       mfmaMod.add(imod)
 
@@ -8398,8 +8421,6 @@ class KernelWriterAssembly(KernelWriter):
                           glc=isGlc, slc=isSlc, nt=isNT, lds=isLds, \
                           hi16=isHigh16Bits , \
                           comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp)))
-                if tc == 'A' and (kernel["MIInputPerThreadA"] == 8):
-                  instOffset += 16 # 256b reads require 16B offset
 
                 if unrollMirrorWithSoffset:
                   codeMod = Module("mirrorIdx%u"%loopCnt)
@@ -9649,7 +9670,8 @@ class KernelWriterAssembly(KernelWriter):
               elif (self.states.localReadDoCntA)%(wlr):
                 offsetInc = (kernel["MacroTile%s"%tP["tensorChar"]] + LdsPad) * kernel["MIInputPerThreadA"]
               else:
-                if kernel["UnrollMajorLDSA"] == False and kernel["MatrixInstK"] >= 64: # Special handling for new f8 mfmas
+                isTF32EmuGfx950 = kernel["UseF32XEmulation"] and  (kernel["MatrixInstK"] >= 32 or (kernel["MatrixInstM"] == 32 and kernel["MatrixInstK"] == 16))
+                if kernel["UnrollMajorLDSA"] == False and kernel["MatrixInstK"] >= 64 or isTF32EmuGfx950: # Special handling for new f8 mfmas
                   offsetInc = (kernel["MacroTile%s"%tP["tensorChar"]] + LdsPad) * (kernel["MatrixInstK"])
                 else:
                   offsetInc = (kernel["MacroTile%s"%tP["tensorChar"]] + LdsPad) * (kernel["MatrixInstK"]*lrvw//kernel["MIInputPerThreadA"]-kernel["MIInputPerThreadA"]*(lrvw//kernel["MIInputPerThreadA"]-1))
@@ -9679,7 +9701,9 @@ class KernelWriterAssembly(KernelWriter):
                 offsetInc = (kernel["MacroTile%s"%tP["tensorChar"]] + LdsPad) * kernel["MIInputPerThreadB"]
 
               else:
-                if kernel["UnrollMajorLDSB"] == False and kernel["MatrixInstK"] >= 64: # Special handling for new f8 mfmas:
+                # Check if we are emulating with gfx950 specific bf16 mfmas
+                isTF32EmuGfx950 = kernel["UseF32XEmulation"] and  (kernel["MatrixInstK"] >= 32 or (kernel["MatrixInstM"] == 32 and kernel["MatrixInstK"] == 16))
+                if kernel["UnrollMajorLDSB"] == False and kernel["MatrixInstK"] >= 64 or isTF32EmuGfx950: # Special handling for new f8 mfmas:
                   offsetInc = (kernel["MacroTile%s"%tP["tensorChar"]] + LdsPad) * (kernel["MatrixInstK"])
                 else:
                   offsetInc = (kernel["MacroTile%s"%tP["tensorChar"]] + LdsPad) * (kernel["MatrixInstK"]*lrvw//kernel["MIInputPerThreadB"]-kernel["MIInputPerThreadB"]*(lrvw//kernel["MIInputPerThreadB"]-1))
@@ -11994,7 +12018,6 @@ class KernelWriterAssembly(KernelWriter):
           # split into two dwordx4 loads. Second load offset is +0.5 bpl
           rv = Module("emulated _buffer_load_b256")
           dst = None if lds else vgpr(destVgpr, rpv//2)
-          print("emulatedb256 ", dst, addr0)
           rv.add(BufferLoadB128(dst=dst, vaddr=addr0, saddr=addr1, \
                                 soffset=soffset, mubuf=mubuf, comment=comment))
           mubuf2 = MUBUFModifiers(offen=True, offset12=int(offset + bpl/2), glc=glc, slc=slc, nt=nt, lds=lds)
@@ -12003,10 +12026,8 @@ class KernelWriterAssembly(KernelWriter):
           elif isinstance(destVgpr, int):
             dst2 = int(destVgpr + int(rpv//2))
           dst = None if lds else vgpr(dst2, rpv//2)
-          print("emulatedb2562 ", dst, addr0)
-          # rv.add(SWaitCnt(vmcnt=0, comment=""))
-          # rv.add(BufferLoadB128(dst=dst, vaddr=addr0, saddr=addr1, \
-          #                      soffset=soffset, mubuf=mubuf2, comment=comment))
+          rv.add(BufferLoadB128(dst=dst, vaddr=addr0, saddr=addr1, \
+                                soffset=soffset, mubuf=mubuf2, comment=comment))
           return rv
         elif bpl==64 and not lds:
           rv = Module("emulated _buffer_load_b512")
@@ -12037,11 +12058,6 @@ class KernelWriterAssembly(KernelWriter):
                                 soffset=soffset, mubuf=mubuf4, comment=comment))
         else:
           assert 0, "%s\nchooseGlobalRead: bad bpl %u"%(self.states.kernelName,bpl)
-      
-      # global dbgCounter
-      # rv.add(SWaitCnt(lgkmcnt=0, comment=""))
-      # rv.add(TextBlock(str("label_gr_") + str(dbgCounter) + ":\n"))
-      # dbgCounter += 1
 
       # buffer_load offset field is 12-bit.
       # if offset >= 4096, use soffset instead
