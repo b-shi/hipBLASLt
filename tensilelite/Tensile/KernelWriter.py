@@ -2123,11 +2123,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           module.add(self.codes.unrollLoopHeader)
 
       if kernel["D_U_iseqMI_K"]:
-        mfmaiter0 =  math.ceil(kernel["MIWaveTile"][0]/2) * math.ceil(kernel["MIWaveTile"][1]/2)
-        mfmaiter1 = math.floor(kernel["MIWaveTile"][0]/2) * math.ceil(kernel["MIWaveTile"][1]/2)
-        mfmaiter2 = math.ceil(kernel["MIWaveTile"][0]/2) * math.floor(kernel["MIWaveTile"][1]/2)
         self.states.lwStartMfmaIndex = math.floor((kernel["MIWaveTile"][1] + kernel["MIWaveTile"][0])/2) -1
-        self.states.syncPlrMfmaIndex = mfmaiter0 + mfmaiter1 + mfmaiter2
 
       # which loop iteration to reset the LRO,
       # note if PLR=0, isResetLroIter is False for all u
@@ -2546,11 +2542,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # which loop iteration to reset the LRO,
       # note if PLR=0, isResetLroIter is False for all u
       if kernel["D_U_iseqMI_K"]:
-        mfmaiter0 =  math.ceil(kernel["MIWaveTile"][0]/2) * math.ceil(kernel["MIWaveTile"][1]/2)
-        mfmaiter1 = math.floor(kernel["MIWaveTile"][0]/2) * math.ceil(kernel["MIWaveTile"][1]/2)
-        mfmaiter2 = math.ceil(kernel["MIWaveTile"][0]/2) * math.floor(kernel["MIWaveTile"][1]/2)
         self.states.lwStartMfmaIndex = math.floor((kernel["MIWaveTile"][1] + kernel["MIWaveTile"][0])/2) -1
-        self.states.syncPlrMfmaIndex = mfmaiter0 + mfmaiter1 + mfmaiter2
         #self.states.lwEndMfmaIndex = min(self.states.syncPlrMfmaIndex-1 ,self.states.lwStartMfmaIndex + kernel["MIWaveTile"][1] + kernel["MIWaveTile"][0])
         
       isResetLroIter = 1 if kernel["D_U_iseqMI_K"] else (u == localWriteEndIter)
