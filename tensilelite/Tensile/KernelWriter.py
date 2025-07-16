@@ -2207,6 +2207,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
           if needNextBufLR:
             localReads.add(localReadCodeA)
           pack[plrIdx*self.states.numIterPerCoalescedReadA].add(packCodeA)
+          if kernel["D_U_iseqMI_K"]:
+            pack[1] = Module()
+            pack[1].add(packCodeA)
         if doReadM:
           localReads.addComment1("local read metadata")
           localReadCodeM, packCodeM = self.localReadDo(kernel, plrIdx*self.states.numIterPerCoalescedReadMetadata, iui*self.states.numReadsIterCoalescedMetadata, 0, tPM)
@@ -2220,6 +2223,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
             # DTV + pack or input conversion case, offset bufferIdx for local read packing instructions
             bufferIdx = plrIdxDTV*self.states.numIterPerCoalescedReadB + vregSetIdxLR * kernel["LoopIters"]
           localReadCodeB, packCodeB = self.localReadDo(kernel, bufferIdx, iui*self.states.numReadsIterCoalescedB, 0, tensorParametersB)
+          if kernel["D_U_iseqMI_K"]:
+            pack[1].add(packCodeB)
           if needNextBufLR:
             localReads.add(localReadCodeB)
           pack[plrIdx*self.states.numIterPerCoalescedReadB].add(packCodeB)
@@ -2292,6 +2297,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           module.add(self.getWaitcntCodeForDirectToVgpr(kernel, tensorParametersA, tensorParametersB, localWriteEndIter, u, isNLL=(not isNGLL), NLLlast=NLLlast))
 
       luIdx = u % self.states.numVgprBuffer # local to use for MACs
+      if kernel["D_U_iseqMI_K"]:
+        luIdx = u
       if kernel["EnableMatrixInstruction"]:
         macIterCode.add(self.mfmaIter(kernel, tensorParametersA, tensorParametersB, u, kernel["InnerUnroll"], vregSetIdxMFMA, unrollIdx = u))
       else:
@@ -2622,6 +2629,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
           localReads.add(localReadCodeA)
           localReadsA.add(localReadCodeA)
           pack[plrIdx*self.states.numIterPerCoalescedReadA].add(packCodeA)
+          if kernel["D_U_iseqMI_K"]:
+            pack[1] = Module()
+            pack[1].add(packCodeA)
         if doReadM:
           localReads.addComment1("local read metadata")
           localReadCodeM, packCodeM = self.localReadDo(kernel, plrIdx*self.states.numIterPerCoalescedReadMetadata, iui*self.states.numReadsIterCoalescedMetadata, 0, tPM)
@@ -2638,6 +2648,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
           localReads.add(localReadCodeB)
           localReadsB.add(localReadCodeB)
           pack[plrIdx*self.states.numIterPerCoalescedReadB].add(packCodeB)
+          if kernel["D_U_iseqMI_K"]:
+            pack[1].add(packCodeB)
+
         # Don't increment the LRO if we are going to reset them below:
         if not isResetLroIter or iui != kernel["InnerUnroll"]-1:
           if doReadA:
@@ -2733,6 +2746,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # Is this test necessary because of the global variable this if was previously always true
       # after removing the global variable it is always false...
       # if self.states.numItersPLR:
+      if kernel["D_U_iseqMI_K"]:
+        luIdx = u
       subIterCode = self._makeSubIterSchedule(kernel, tensorParametersA, tensorParametersB, localReads, \
                       u, pointerLWCode, pointerLRCode, waitCode, macIterCode, waitLWCode, syncCode, pack[luIdx], module)
       module.add(subIterCode) # add scheduled "other", local reads, local writes
@@ -2786,8 +2801,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     if self.do["executeToPrefetchEnd"]:
       module.add(self.functionEnd(kernel, addLabel=False))
-
-    pack = [ Module() for i in range (self.states.numVgprBuffer) ]
+    if kernel["D_U_iseqMI_K"]:
+      pack = [ Module() for i in range (4) ] 
+    else:
+      pack = [ Module() for i in range (self.states.numVgprBuffer) ]
     self.preLoopLocalWriteCode = None
 
     if kernel["PrefetchGlobalRead"]:
