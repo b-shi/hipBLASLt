@@ -741,7 +741,7 @@ def assignLWSchedIndexSIA3(writer, kernel, numLocalWritesPerSched, localWriteEnd
         writer.states.sync1LdsMfmaIndex = max(writer.states.lwStartMfmaIndex - 1, 0)
     startIter = writer.states.lwStartMfmaIndex//numMfmaPerIter
     if kernel["D_U_iseqMI_K"]:
-        startIter = 1
+        startIter = min(1,startIter) # if D_U_iseqMI_K, startIter should be 0 or 1
     assert startIter < localWriteEndIter+1 # startIter should be at or before the endIter
     return startIter
 

@@ -2148,8 +2148,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
             extraComment += " (swap and reset local write pointers iteration) "
         if isSwapLroIter:
             extraComment += " (swap local read pointers iteration) "
-
-      module.addComment1("iter %u%s"%(u,extraComment))
+      if kernel["D_U_iseqMI_K"]:
+        module.addComment1("subiter %u"%(u))
+      else:
+        module.addComment1("iter %u%s"%(u,extraComment))
       plrIdx = (u+pflr) % self.states.numVgprBuffer
       plrIdxDTV = (u+pflr) % kernel["LoopIters"]
       localReads = Module()
@@ -2570,7 +2572,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if isSwapLroIter:
         extraComment += " (swap local read pointers iteration) "
 
-      module.addComment1("iter %u%s"%(u,extraComment))
+      if kernel["D_U_iseqMI_K"]:
+        module.addComment1("subiter %u"%(u))
+      else:
+        module.addComment1("iter %u%s"%(u,extraComment))
+
       plrIdx = (u+pflr) % self.states.numVgprBuffer
       plrIdxDTV = (u+pflr) % kernel["LoopIters"]
 
