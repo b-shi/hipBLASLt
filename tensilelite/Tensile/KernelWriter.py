@@ -1303,9 +1303,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 skipLocalWriteWaitcnt += countLocalWrite(writeItem) + countDSStoreB256(writeItem)
               if not localReadItemsThisLoop:
                 self.states.perIterLocalWriteCanSkip[iteration] += countLocalWrite(writeItem) + countDSStoreB256(writeItem)
-            if kernel["D_U_iseqMI_K"] and (writeItems and i == numMfmaPerIter - 1):
-              writeItem = writeItems.pop(0)
-              iterCode.add(writeItem)
+            if kernel["D_U_iseqMI_K"] and (writeItems and i == (numMfmaPerIter - 1)):
+              # if D_U_iseqMI_K, we need to schedule all localWrite in last mfma
+              while writeItems:      
+                writeItem = writeItems.pop(0)
+                iterCode.add(writeItem)
         if mfmaIndex == self.states.lwEndMfmaIndex:
           while writeItems:
             localWriteCodeCounts.pop(0)
@@ -2132,7 +2134,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       isSwapLroIter = isResetLroIter
       if kernel["ScheduleIterAlg"] == 3:
         if kernel["D_U_iseqMI_K"]:
-          isSwapAndResetLwoIter = (u == 2)
+          isSwapAndResetLwoIter = 1
         else:
           isSwapAndResetLwoIter = (u == self.states.lwEndMfmaIndex//(self.states.numMfmaPerIter))
 
@@ -2557,7 +2559,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       isSwapLroIter = isResetLroIter
       if kernel["ScheduleIterAlg"] == 3:
         if kernel["D_U_iseqMI_K"]:
-          isSwapAndResetLwoIter = (u == 2)
+          isSwapAndResetLwoIter = 1
         else:
           isSwapAndResetLwoIter = (u == self.states.lwEndMfmaIndex//(self.states.numMfmaPerIter))
       extraComment = ""
