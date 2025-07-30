@@ -33,7 +33,7 @@ from ..Component import SIA
 
 from copy import deepcopy
 from typing import Tuple
-
+import math
 PRECISION = 100
 class SIA3(SIA):
     kernel = {"ScheduleIterAlg": 3}
@@ -55,8 +55,9 @@ class SIA3(SIA):
             numLocalWriteModPerMfma = roundUp(kernel["LocalWritePerMfma"]*PRECISION)
 
         writer.states.numGlobalReadInsPerMfma, writer.states.numLocalWriteModPerMfma = calculateGRPMandLWPM(writer, kernel, numLocalWriteModPerMfma)
-        localWriteEndIter = fixLocalWriteEndMfmaIndex(writer, kernel, tensorParametersA, tensorParametersB, \
-            globalReadIncACode, globalReadIncBCode, numMfmaBetweenLWandBarrier, lastLoop)
+        if not kernel["D_U_iseqMI_K"]:
+            localWriteEndIter = fixLocalWriteEndMfmaIndex(writer, kernel, tensorParametersA, tensorParametersB, \
+                globalReadIncACode, globalReadIncBCode, numMfmaBetweenLWandBarrier, lastLoop)
         numGlobalReadInsPerIter, numLocalWriteModPerIter, numEmptyGlobalReadIncCode = getScheduleParamMfma(writer)
         numLocalWritesPerSched = writer.states.numLocalWriteModPerMfma
         # Schedule global read
@@ -258,6 +259,14 @@ def getLocalWriteMFMAEnd(writer, kernel, tensorParametersA, tensorParametersB):
     # final index definition
     writer.states.numMfmaForNextLoopLR = min(writer.states.numMfmaForNextLoopLR,numMfmaPerIter-1)
     writer.states.syncPlrMfmaIndex = numMfmaPerIter*(kernel["LoopIters"]-writer.states.numItersPLR+1) - writer.states.numMfmaForNextLoopLR - 1 if writer.states.numItersPLR else 0
+    if kernel["D_U_iseqMI_K"]:
+        mfmaiter0 =  math.ceil(kernel["MIWaveTile"][0]/2) * math.ceil(kernel["MIWaveTile"][1]/2)
+        mfmaiter1 = math.floor(kernel["MIWaveTile"][0]/2) * math.ceil(kernel["MIWaveTile"][1]/2)
+        mfmaiter2 = math.ceil(kernel["MIWaveTile"][0]/2) * math.floor(kernel["MIWaveTile"][1]/2)
+        writer.states.syncPlrMfmaIndex = (mfmaiter0 + mfmaiter1 + mfmaiter2)
+        if ( kernel["UseF32XEmulation"]) :
+            writer.states.syncPlrMfmaIndex = writer.states.syncPlrMfmaIndex *3   # TF32
+
     numMfmaBetweenLWandBarrier = 2 if kernel["MatrixInstM"] == 32 else 3
     writer.states.lwEndMfmaIndex = max(writer.states.syncPlrMfmaIndex - numMfmaBetweenLWandBarrier,0) if writer.states.numItersPLR else numMfmaPerIter*kernel["LoopIters"] - 1
     if kernel["DirectToLds"] and kernel["PrefetchGlobalRead"] == 2:
@@ -731,6 +740,8 @@ def assignLWSchedIndexSIA3(writer, kernel, numLocalWritesPerSched, localWriteEnd
     if kernel["1LDSBuffer"] or kernel["DirectToLds"]:
         writer.states.sync1LdsMfmaIndex = max(writer.states.lwStartMfmaIndex - 1, 0)
     startIter = writer.states.lwStartMfmaIndex//numMfmaPerIter
+    if kernel["D_U_iseqMI_K"]:
+        startIter = min(1,startIter) # if D_U_iseqMI_K, startIter should be 0 or 1
     assert startIter < localWriteEndIter+1 # startIter should be at or before the endIter
     return startIter
 
@@ -760,6 +771,7 @@ def schedLocalWrite(writer, kernel, numLocalWriteModPerIter, numLocalWritesPerSc
 
     itemsLWToSchedIndexLast = 0
     for u in range(startIter, localWriteEndIter+1):
+        print("iteration %u, itemsLWToSchedIndexLast=%u, itemsLWToSchedLength=%u"%(u, itemsLWToSchedIndexLast, len(itemsLWToSched)))
         itemsLWToSchedLength = itemsLWToSched[-1][0] if itemsLWToSched else 0
         if u == localWriteEndIter:
             itemPerIter = itemsLWToSchedLength # schedule all remaining activity
